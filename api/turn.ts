@@ -30,6 +30,7 @@ import {
 } from '../lib/schema.js';
 import {
   changedSlotKeys,
+  dropQuestionEchoes,
   normalizeForMatch,
   verifyEvidenceByLlm,
   verifyEvidenceByText,
@@ -210,7 +211,7 @@ export async function processTurn(
 
   // (2) 검증: 문자열 대조(전체) → LLM 판정(이번에 바뀐 슬롯만)
   const byText = verifyEvidenceByText(merged, userTexts);
-  const verified = await verifyEvidenceByLlm(
+  const judged = await verifyEvidenceByLlm(
     byText,
     judgeWith(complete),
     changedSlotKeys(req.slots, byText),
@@ -218,6 +219,14 @@ export async function processTurn(
 
   const crisis = llm.crisis || detectCrisisKeywords(lastUser);
   const questions = cleanQuestions(llm.questions_to_ask, userTexts);
+
+  // 묻는 말을 용건·원하는 것·날짜에 또 적은 경우 지운다(근거가 원문에 있는 질문만 기준으로)
+  const haystacks = userTexts.map(normalizeForMatch);
+  const questionEvidences = [
+    judged.question.evidence,
+    ...llm.questions_to_ask.map((q) => q.evidence),
+  ].filter((ev): ev is string => !!ev && haystacks.some((h) => h.includes(normalizeForMatch(ev))));
+  const verified = dropQuestionEchoes(judged, questionEvidences);
   const fixed = [...FIXED_QUICK_ANSWERS[req.language]];
 
   // 다음 질문은 코드로 정한다(이미 값이 있거나 이미 물은 슬롯은 묻지 않음, 최대 3번)

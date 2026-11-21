@@ -278,6 +278,33 @@ describe('processTurn', () => {
     expect(r.questions_to_ask).toEqual(['얼마나 걸리나요?']);
   });
 
+  it('묻는 말을 원하는 것·날짜에 또 적으면 지운다(운영 실측 사례)', async () => {
+    const { complete } = fakeLlm({
+      slots: {
+        whose_matter: { value: '어머니(본인 아님)', evidence: '엄마' },
+        purpose: { value: '기초연금 신청', evidence: '기초연금 신청하려는데' },
+        desired: { value: '뭐가 필요한지 모르겠어요', evidence: '뭐가 필요한지 모르겠어요' },
+        date: { value: '언제까지', evidence: '언제까지 해야 되는지' },
+        question: { value: '뭐가 필요한지 모르겠어요', evidence: '뭐가 필요한지 모르겠어요' },
+      },
+      questions_to_ask: [
+        { question: '언제까지 해야 하나요?', evidence: '언제까지 해야 되는지 몰라요' },
+      ],
+    });
+    const r = await processTurn(
+      req({
+        history: [
+          user('엄마 기초연금 신청하려는데 뭐가 필요한지 모르겠어요. 언제까지 해야 되는지 몰라요'),
+        ],
+      }),
+      complete,
+    );
+    expect(r.slots.desired).toEqual(e());
+    expect(r.slots.date).toEqual(e());
+    expect(r.slots.purpose.value).toBe('기초연금 신청');
+    expect(r.slots.question.value).toBe('뭐가 필요한지 모르겠어요');
+  });
+
   it('물어볼 것이 이미 있으면 "궁금한 점"은 다시 묻지 않는다', async () => {
     const s = emptySlots();
     s.whose_matter = { value: '본인', evidence: '제 거' };

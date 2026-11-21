@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import type { Slots } from '../lib/schema.js';
 import {
   changedSlotKeys,
+  dropQuestionEchoes,
   normalizeForMatch,
   verifyEvidenceByLlm,
   verifyEvidenceByText,
@@ -122,5 +123,50 @@ describe('changedSlotKeys', () => {
     before.purpose = { value: '등본', evidence: '등본' };
     const after = { ...before, date: { value: '내일', evidence: '내일까지' } };
     expect(changedSlotKeys(before, after)).toEqual(['date']);
+  });
+});
+
+describe('dropQuestionEchoes', () => {
+  const withSlot = (k: keyof Slots, evidence: string): Slots => ({
+    ...base(),
+    [k]: { value: evidence, evidence },
+  });
+
+  it('질문과 같은 말이 원하는 것에 들어가면 지운다', () => {
+    const s = withSlot('desired', '뭐가 필요한지 모르겠어요');
+    expect(dropQuestionEchoes(s, ['뭐가 필요한지 모르겠어요']).desired).toEqual(e());
+  });
+
+  it('질문의 대부분을 차지하는 날짜도 지운다', () => {
+    const s = withSlot('date', '언제까지해야되는지');
+    expect(dropQuestionEchoes(s, ['언제까지해야되는지 몰라요']).date).toEqual(e());
+  });
+
+  it('질문을 통째로 포함한 용건도 지운다', () => {
+    const s = withSlot('purpose', '전입신고 하려는데 뭐 가져가야 돼요?');
+    expect(dropQuestionEchoes(s, ['뭐 가져가야 돼요?']).purpose).toEqual(e());
+  });
+
+  it('질문의 짧은 일부인 용건은 남긴다', () => {
+    const s = withSlot('purpose', '전입신고');
+    expect(dropQuestionEchoes(s, ['전입신고 얼마나 걸려요?']).purpose.value).toBe('전입신고');
+  });
+
+  it('질문과 겹치지 않으면 그대로', () => {
+    const s = withSlot('purpose', '기초연금 신청하려는데');
+    expect(dropQuestionEchoes(s, ['뭐가 필요한지 모르겠어요'])).toEqual(s);
+  });
+
+  it('누구의 일·궁금한 점은 건드리지 않는다', () => {
+    const s = {
+      ...withSlot('question', '뭐가 필요한지'),
+      whose_matter: { value: '본인', evidence: '뭐가 필요한지' },
+    };
+    expect(dropQuestionEchoes(s, ['뭐가 필요한지'])).toEqual(s);
+  });
+
+  it('질문이 없으면 그대로', () => {
+    const s = withSlot('date', '내일까지');
+    expect(dropQuestionEchoes(s, [])).toBe(s);
   });
 });
