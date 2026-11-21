@@ -67,7 +67,10 @@ const RULES = `너는 주민센터·구청 방문 전 민원인의 말을 담당
 - evidence는 사용자 발화에서 글자 그대로 복사한 부분 문자열이다. 고치거나 요약하거나 번역하지 않는다.
 - 근거가 없으면 value와 evidence를 둘 다 null로 둔다. 애매하면 null이 맞다.
 - "해당 없어요", "잘 모르겠어요" 같은 답은 근거가 아니다. 그 슬롯은 null로 둔다.
-- whose_matter는 본인이면 "본인", 대신이면 "어머니(본인 아님)"처럼 관계를 적는다.`;
+- value에 원문에 없는 낱말을 덧붙이지 않는다. 예: "뭐가 필요한지" → "필요한 서류"(X), "필요한 것"(O). 사용자가 쓴 말을 살려 적는다.
+- whose_matter는 사용자가 누구의 일인지 직접 말했을 때만 채운다. "제 거", "제가", "저는", "내 거"처럼 본인이라고 했으면 "본인", "엄마"처럼 다른 사람을 말했으면 "어머니(본인 아님)"처럼 적는다. 말하지 않았으면 null이다. 본인이라고 추측하지 않는다.
+- 사용자가 묻는 말("뭐가 필요한지", "될까요?", "얼마나 걸려요?", "뭐 가져가야 돼요?")은 question 슬롯과 questions_to_ask에만 넣는다. purpose·desired에 넣지 않는다.
+- 사정이나 상황만 말하고 무엇 때문에 왔는지(용건)를 말하지 않았으면 purpose는 null이다.`;
 
 const SLOT_GUIDE = SLOT_META.map((m) => `- ${m.key} (${m.name_ko}): ${m.description_ko}`).join(
   '\n',
@@ -85,7 +88,7 @@ ${SLOT_GUIDE}
 ${task}
 
 함께 돌려줄 것:
-- questions_to_ask: 사용자가 담당자에게 묻고 싶어 한 것(한국어, 사용자가 실제로 궁금해한 것만, 최대 3개). 없으면 빈 배열.
+- questions_to_ask: 사용자가 실제로 물었거나 궁금하다고 말한 것만(최대 3개). question은 한국어 한 문장, evidence는 그 질문이 들어 있는 사용자 발화 부분을 글자 그대로 복사한다. 찰떡(질문)의 문장이나, 네가 생각하기에 물어보면 좋을 질문은 절대 넣지 않는다. 없으면 빈 배열.
 - worth_asking: 아직 비어 있는 슬롯 중 되물으면 담당자에게 도움이 될 슬롯 키 목록. 대화 흐름상 의미 없는 슬롯은 넣지 않는다.
 - crisis: 마지막 사용자 발화에 생명·안전 위협(자살·자해 생각, 폭력·학대)이나 생계 위기(굶주림, 당장 쫓겨남·잘 곳 없음)가 드러나면 true. 일상적 과장 표현("죽겠다", "미치겠다")은 false.`;
 }
@@ -137,7 +140,15 @@ export const TURN_JSON_SCHEMA = {
       required: SLOT_KEYS_IN_ORDER,
       additionalProperties: false,
     },
-    questions_to_ask: { type: 'array', items: { type: 'string' } },
+    questions_to_ask: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: { question: { type: 'string' }, evidence: { type: 'string' } },
+        required: ['question', 'evidence'],
+        additionalProperties: false,
+      },
+    },
     worth_asking: { type: 'array', items: { type: 'string', enum: SLOT_KEYS_IN_ORDER } },
     crisis: { type: 'boolean' },
   },
@@ -148,13 +159,23 @@ export const TURN_JSON_SCHEMA = {
 // ── (2) 검증 호출 ─────────────────────────────────────────────
 
 export const VERIFY_SYSTEM_PROMPT = `너는 받아 적기 검수자다. 각 항목의 value가 evidence(사용자 원문)에서 벗어나는지만 판정한다.
-- evidence에 없는 사실, 추측, 판단(자격·결과·민원 종류 이름 붙이기), 준비물·기한 같은 일반 지식이 value에 들어 있으면 faithful=false.
-- evidence를 한국어로 옮기거나 짧게 줄인 것은 faithful=true.
-- 관계 표현("엄마" → "어머니(본인 아님)")은 faithful=true.
+faithful=false인 경우:
+- evidence에 없는 사실, 추측, 판단(자격·결과·민원 종류 이름 붙이기), 준비물·기한 같은 일반 지식이 value에 들어 있다.
+- evidence에 없는 낱말을 덧붙였다. 예: evidence "뭐가 필요한지" → value "필요한 서류 안내"는 false("서류", "안내"를 덧붙임).
+- 항목 뜻에 맞지 않는다. 예: 사용자가 묻는 말("될까요?", "뭐 가져가야 돼요?")을 purpose·desired로 적었다.
+- whose_matter가 "본인"인데 evidence에 본인을 가리키는 말("제", "저", "내", "본인", "my", "tôi")이 없다.
+faithful=true인 경우:
+- evidence를 한국어로 옮기거나 짧게 줄였을 뿐이다.
+- 관계 표현을 다듬었다("엄마" → "어머니(본인 아님)").
 다른 설명 없이 항목마다 판정만 돌려준다.`;
 
 export function buildVerifyUserPrompt(items: { key: SlotKey; value: string; evidence: string }[]) {
-  return items.map((i) => `- ${i.key}\n  value: ${i.value}\n  evidence: ${i.evidence}`).join('\n');
+  return items
+    .map(
+      (i) =>
+        `- ${i.key}\n  항목 뜻: ${slotMeta(i.key).description_ko}\n  value: ${i.value}\n  evidence: ${i.evidence}`,
+    )
+    .join('\n');
 }
 
 export const VERIFY_JSON_SCHEMA = {
