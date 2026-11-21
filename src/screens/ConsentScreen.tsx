@@ -1,17 +1,22 @@
 import type { FC } from 'react';
 import { BigButton, ScreenTitle, AiMayBeWrong } from '../components/index.js';
-import { useAppState } from '../state/index.js';
+import { useAppState, useLiveActions } from '../state/index.js';
+import { unlockAudio } from '../voice/speak.js';
 
 export const ConsentScreen: FC = () => {
   const { dispatch } = useAppState();
+  const live = useLiveActions();
 
   const handleConsent = () => {
-    dispatch({ type: 'GIVE_CONSENT' });
+    unlockAudio(); // iOS: 첫 터치에서 소리 재생 잠금 해제
+    void live.giveConsent();
   };
 
+  // 동의 없이 둘러보기: 체험 모드로만 쓰고 동의 기록은 남기지 않는다(OpenAI 전송 없음)
   const handleDemoBrowse = () => {
+    unlockAudio();
     dispatch({ type: 'SET_MODE', mode: 'demo' });
-    dispatch({ type: 'GIVE_CONSENT' });
+    dispatch({ type: 'NAVIGATE', screen: 'home' });
   };
 
   return (
@@ -24,7 +29,9 @@ export const ConsentScreen: FC = () => {
 
         <div className="bg-blue-50 border-2 border-blue-200 rounded-2xl p-5 mb-6 text-gray-800 space-y-4">
           <div className="flex items-start gap-3">
-            <span className="text-2xl" aria-hidden="true">🔒</span>
+            <span className="text-2xl" aria-hidden="true">
+              🔒
+            </span>
             <div>
               <h2 className="font-bold text-lg text-blue-900">개인정보 및 안내 고지</h2>
               <p className="mt-1 text-base leading-relaxed">

@@ -1,4 +1,4 @@
-import { lazy, Suspense, type ComponentType } from 'react';
+import { lazy, Suspense, useEffect, type ComponentType } from 'react';
 import { AppLayout } from './components/index.js';
 import {
   ConsentScreen,
@@ -10,7 +10,7 @@ import {
   CrisisScreen,
   ErrorScreen,
 } from './screens/index.js';
-import { StateProvider, useAppState } from './state/index.js';
+import { StateProvider, useAppState, useLiveActions } from './state/index.js';
 
 // 임시 라우트: /mic-test → B의 실기기 녹음·STT·TTS 확인용
 const micTestModules = import.meta.glob<Record<string, unknown>>('./voice/MicTest.tsx');
@@ -24,6 +24,12 @@ const MicTest = loadMicTest
 
 function MainRouter() {
   const { state } = useAppState();
+  const live = useLiveActions();
+
+  // 앱 시작 시 한 번: 만료된 요약 정리, 이전 동의 복원, 저장 목록 불러오기
+  useEffect(() => {
+    void live.startup();
+  }, [live]);
 
   const renderScreen = () => {
     switch (state.screen) {
