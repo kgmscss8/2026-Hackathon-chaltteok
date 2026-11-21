@@ -1,0 +1,34 @@
+[
+  {
+    "tags": ["welfare"],
+    "name": "보건복지상담센터",
+    "phone": "129",
+    "scope": "복지 제도 상담",
+    "source": "https://www.129.go.kr",
+    "checked_at": "2026-11-21"
+  },
+  {
+    "tags": ["welfare"],
+    "name": "국민연금공단 고객센터",
+    "phone": "1355",
+    "scope": "국민연금·기초연금 상담",
+    "source": "https://www.nps.or.kr",
+    "checked_at": "2026-11-21"
+  },
+  {
+    "tags": ["resident", "general"],
+    "name": "정부민원안내콜센터",
+    "phone": "110",
+    "scope": "정부 민원 안내",
+    "source": "https://www.110.go.kr",
+    "checked_at": "2026-11-21"
+  },
+  {
+    "tags": ["welfare", "resident", "general"],
+    "name": "거주지 주민센터",
+    "phone": null,
+    "scope": "방문 상담",
+    "source": null,
+    "checked_at": "2026-11-21"
+  }
+]
