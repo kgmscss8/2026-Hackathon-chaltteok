@@ -1,0 +1,9 @@
+.env*
+node_modules
+dist
+.vercel
+.taskmaster/tasks/
+.taskmaster/state.json
+.taskmaster/config.json
+.claude/settings.local.json
+.gemini/
