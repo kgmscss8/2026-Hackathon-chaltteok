@@ -1,0 +1,173 @@
+{
+  "version": 1,
+  "note": "D의 예시 시나리오(src/demo)용. steps[i].user는 그 차례 사용자 발화, steps[i].result는 /api/turn이 돌려줄 TurnResult. 마지막 result는 done=true. contacts_tags는 /api/contacts가 고를 태그 예시.",
+  "scenarios": [
+    {
+      "id": "demo-pension-mother",
+      "title": "어머니 기초연금 신청 대리",
+      "language": "ko",
+      "contacts_tags": ["welfare", "general"],
+      "steps": [
+        {
+          "user": {
+            "text": "엄마 기초연금 신청하려는데 뭐가 필요한지 모르겠어요",
+            "source": "voice"
+          },
+          "result": {
+            "slots": {
+              "whose_matter": { "value": "어머니(본인 아님)", "evidence": "엄마" },
+              "purpose": { "value": "기초연금 신청", "evidence": "엄마 기초연금 신청하려는데" },
+              "desired": { "value": null, "evidence": null },
+              "date": { "value": null, "evidence": null },
+              "question": {
+                "value": "필요한 것이 무엇인지",
+                "evidence": "뭐가 필요한지 모르겠어요"
+              }
+            },
+            "questions_to_ask": ["신청에 필요한 것이 무엇인지"],
+            "next_question": "오늘 창구에서 어떻게 되길 바라세요?",
+            "quick_answers": [
+              "오늘 신청까지 하고 싶어요",
+              "방법만 알고 싶어요",
+              "상담받고 싶어요",
+              "해당 없어요",
+              "잘 모르겠어요",
+              "직접 말할게요"
+            ],
+            "ask_count": 1,
+            "done": false,
+            "crisis": false
+          }
+        },
+        {
+          "user": { "text": "방법만 알고 싶어요", "source": "quick" },
+          "result": {
+            "slots": {
+              "whose_matter": { "value": "어머니(본인 아님)", "evidence": "엄마" },
+              "purpose": { "value": "기초연금 신청", "evidence": "엄마 기초연금 신청하려는데" },
+              "desired": { "value": "신청 방법 안내", "evidence": "방법만 알고 싶어요" },
+              "date": { "value": null, "evidence": null },
+              "question": {
+                "value": "필요한 것이 무엇인지",
+                "evidence": "뭐가 필요한지 모르겠어요"
+              }
+            },
+            "questions_to_ask": ["신청에 필요한 것이 무엇인지"],
+            "next_question": "이 일과 관련된 날짜나, 언제까지 해야 하는 기한이 있나요?",
+            "quick_answers": [
+              "이번 주 안에요",
+              "이번 달 안에요",
+              "급하지 않아요",
+              "해당 없어요",
+              "잘 모르겠어요",
+              "직접 말할게요"
+            ],
+            "ask_count": 2,
+            "done": false,
+            "crisis": false
+          }
+        },
+        {
+          "user": { "text": "이번 달 안에요", "source": "quick" },
+          "result": {
+            "slots": {
+              "whose_matter": { "value": "어머니(본인 아님)", "evidence": "엄마" },
+              "purpose": { "value": "기초연금 신청", "evidence": "엄마 기초연금 신청하려는데" },
+              "desired": { "value": "신청 방법 안내", "evidence": "방법만 알고 싶어요" },
+              "date": { "value": "이번 달 안", "evidence": "이번 달 안에요" },
+              "question": {
+                "value": "필요한 것이 무엇인지",
+                "evidence": "뭐가 필요한지 모르겠어요"
+              }
+            },
+            "questions_to_ask": ["신청에 필요한 것이 무엇인지"],
+            "next_question": null,
+            "quick_answers": ["해당 없어요", "잘 모르겠어요", "직접 말할게요"],
+            "ask_count": 2,
+            "done": true,
+            "crisis": false
+          }
+        }
+      ]
+    },
+    {
+      "id": "demo-move-in",
+      "title": "전입신고",
+      "language": "ko",
+      "contacts_tags": ["resident", "general"],
+      "steps": [
+        {
+          "user": {
+            "text": "어제 이 동네로 이사 왔는데요, 전입신고 하려고 왔어요",
+            "source": "voice"
+          },
+          "result": {
+            "slots": {
+              "whose_matter": { "value": null, "evidence": null },
+              "purpose": { "value": "전입신고", "evidence": "전입신고 하려고 왔어요" },
+              "desired": { "value": null, "evidence": null },
+              "date": { "value": "어제 이사", "evidence": "어제 이 동네로 이사 왔는데요" },
+              "question": { "value": null, "evidence": null }
+            },
+            "questions_to_ask": [],
+            "next_question": "누구의 일로 오셨어요? 본인 일인가요, 다른 분을 대신하시나요?",
+            "quick_answers": [
+              "제 일이에요",
+              "가족 대신이에요",
+              "다른 사람 대신이에요",
+              "해당 없어요",
+              "잘 모르겠어요",
+              "직접 말할게요"
+            ],
+            "ask_count": 1,
+            "done": false,
+            "crisis": false
+          }
+        },
+        {
+          "user": { "text": "제 일이에요", "source": "quick" },
+          "result": {
+            "slots": {
+              "whose_matter": { "value": "본인", "evidence": "제 일이에요" },
+              "purpose": { "value": "전입신고", "evidence": "전입신고 하려고 왔어요" },
+              "desired": { "value": null, "evidence": null },
+              "date": { "value": "어제 이사", "evidence": "어제 이 동네로 이사 왔는데요" },
+              "question": { "value": null, "evidence": null }
+            },
+            "questions_to_ask": [],
+            "next_question": "담당자에게 꼭 물어보고 싶은 게 있으세요?",
+            "quick_answers": [
+              "무엇이 필요한지",
+              "얼마나 걸리는지",
+              "대신 해도 되는지",
+              "해당 없어요",
+              "잘 모르겠어요",
+              "직접 말할게요"
+            ],
+            "ask_count": 2,
+            "done": false,
+            "crisis": false
+          }
+        },
+        {
+          "user": { "text": "해당 없어요", "source": "quick" },
+          "result": {
+            "slots": {
+              "whose_matter": { "value": "본인", "evidence": "제 일이에요" },
+              "purpose": { "value": "전입신고", "evidence": "전입신고 하려고 왔어요" },
+              "desired": { "value": null, "evidence": null },
+              "date": { "value": "어제 이사", "evidence": "어제 이 동네로 이사 왔는데요" },
+              "question": { "value": null, "evidence": null }
+            },
+            "questions_to_ask": [],
+            "next_question": null,
+            "quick_answers": ["해당 없어요", "잘 모르겠어요", "직접 말할게요"],
+            "ask_count": 2,
+            "done": true,
+            "crisis": false
+          }
+        }
+      ]
+    }
+  ]
+}
