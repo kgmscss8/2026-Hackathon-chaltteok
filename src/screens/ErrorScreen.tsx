@@ -12,11 +12,14 @@ export const ErrorScreen: FC = () => {
     dispatch({ type: 'CLEAR_ERROR' });
   };
 
+  // 사용량 초과·장애 시 AI 없이 예시로 체험(F13). 진행 중이던 대화는 비우고 시작한다
   const handleSwitchToDemo = () => {
     dispatch({ type: 'CLEAR_ERROR' });
+    dispatch({ type: 'RESET_FLOW' });
     dispatch({ type: 'SET_MODE', mode: 'demo' });
     dispatch({ type: 'NAVIGATE', screen: 'home' });
   };
+  const rateLimited = state.error?.code === 'RATE_LIMITED';
 
   return (
     <div className="flex flex-col justify-between flex-1 py-4 text-center">
@@ -25,16 +28,11 @@ export const ErrorScreen: FC = () => {
           ⚠️
         </div>
 
-        <ScreenTitle
-          title="안내 말씀 드려요"
-          subtitle="정리하는 도중 문제가 생겼습니다"
-        />
+        <ScreenTitle title="안내 말씀 드려요" subtitle="정리하는 도중 문제가 생겼습니다" />
 
         <div className="my-6 p-6 bg-red-50 border-2 border-red-200 rounded-2xl text-left">
           <span className="text-xs font-bold text-red-600 block mb-1">안내 내용:</span>
-          <p className="text-lg font-extrabold text-red-950 leading-relaxed">
-            {errorMessage}
-          </p>
+          <p className="text-lg font-extrabold text-red-950 leading-relaxed">{errorMessage}</p>
         </div>
 
         <p className="text-sm text-gray-500 mb-6">
@@ -43,17 +41,12 @@ export const ErrorScreen: FC = () => {
       </div>
 
       <div className="space-y-3 pt-4">
-        <BigButton
-          variant="primary"
-          onClick={handleRetry}
-          icon="🔄"
-          className="bg-blue-600 hover:bg-blue-700"
-        >
+        <BigButton variant={rateLimited ? 'secondary' : 'primary'} onClick={handleRetry} icon="🔄">
           다시 시도하기
         </BigButton>
 
         <BigButton
-          variant="secondary"
+          variant={rateLimited ? 'primary' : 'secondary'}
           onClick={handleSwitchToDemo}
           icon="✨"
         >

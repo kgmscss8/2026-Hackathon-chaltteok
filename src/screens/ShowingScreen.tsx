@@ -9,14 +9,25 @@ export const ShowingScreen: FC = () => {
   const [showQR, setShowQR] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
 
-  const card = state.currentCard || DemoAdapter.getSummaryCard('pension');
-  const contacts = state.contacts.length > 0 ? state.contacts : DemoAdapter.getContacts('pension');
+  // 예시 데이터로 채우는 건 체험 모드에서만. 실제 모드는 확인된 카드와 데이터에서 고른 연락처만 보여 준다
+  const isDemo = state.mode === 'demo';
+  const card = state.currentCard || DemoAdapter.getSummaryCard(state.demoScenario);
+  const contacts =
+    state.contacts.length > 0 || !isDemo
+      ? state.contacts
+      : DemoAdapter.getContacts(state.demoScenario);
 
   const toggleFullscreen = () => {
     if (!document.fullscreenElement) {
-      document.documentElement.requestFullscreen().then(() => setIsFullscreen(true)).catch(() => {});
+      document.documentElement
+        .requestFullscreen()
+        .then(() => setIsFullscreen(true))
+        .catch(() => {});
     } else {
-      document.exitFullscreen().then(() => setIsFullscreen(false)).catch(() => {});
+      document
+        .exitFullscreen()
+        .then(() => setIsFullscreen(false))
+        .catch(() => {});
     }
   };
 
@@ -150,8 +161,14 @@ export const ShowingScreen: FC = () => {
 
         {/* 참고 연락처 안내 섹션 */}
         {contacts.length > 0 && (
-          <section aria-labelledby="contacts-heading" className="bg-slate-50 border border-slate-200 rounded-2xl p-4 mb-4">
-            <h2 id="contacts-heading" className="text-sm font-bold text-gray-700 mb-2 flex items-center justify-between">
+          <section
+            aria-labelledby="contacts-heading"
+            className="bg-slate-50 border border-slate-200 rounded-2xl p-4 mb-4"
+          >
+            <h2
+              id="contacts-heading"
+              className="text-sm font-bold text-gray-700 mb-2 flex items-center justify-between"
+            >
               <span>📞 관련 기관 참고 연락처</span>
               <span className="text-xs font-normal text-gray-500">직접 문의 가능</span>
             </h2>

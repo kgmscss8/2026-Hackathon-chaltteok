@@ -2,29 +2,50 @@ import { useState, type FC } from 'react';
 import { BigButton, ScreenTitle, AiMayBeWrong } from '../components/index.js';
 import { DemoAdapter } from '../demo/index.js';
 import type { SlotKey } from '../../lib/schema.js';
-import { useAppState } from '../state/index.js';
+import { buildSummaryCard } from '../../lib/summary.js';
+import { useAppState, useLiveActions } from '../state/index.js';
+import { stopSpeaking } from '../voice/speak.js';
 
 export const SummaryScreen: FC = () => {
   const { state, dispatch } = useAppState();
+  const live = useLiveActions();
   const [showOriginal, setShowOriginal] = useState(false);
   const [editingSlot, setEditingSlot] = useState<SlotKey | null>(null);
   const [editValue, setEditValue] = useState('');
+  const isDemo = state.mode === 'demo';
 
-  // 카드가 아직 없으면 데모 기본 카드 활용
-  const card = state.currentCard || DemoAdapter.getSummaryCard('pension');
+  // 실제 모드: /api/turn 결과로 만든 카드(없으면 지금 슬롯으로 만든다). 체험 모드: 예시 카드
+  const card =
+    state.currentCard ??
+    (isDemo
+      ? DemoAdapter.getSummaryCard(state.demoScenario)
+      : buildSummaryCard(state.slots, state.questionsToAsk, state.language));
 
   const handleConfirm = () => {
-    // 맞아요 클릭 -> 창구 보여주기 화면으로 이동
+    if (state.busy) return;
+    stopSpeaking();
+    if (!isDemo) {
+      // 맞아요 → 최종 카드로 참고 연락처 받기 → 폰에 저장 → 창구 보여주기
+      void live.confirmSummary();
+      return;
+    }
     if (!state.currentCard) {
       dispatch({ type: 'SET_CARD', card });
     }
     if (state.contacts.length === 0) {
       dispatch({
         type: 'SET_CONTACTS',
-        contacts: DemoAdapter.getContacts('pension'),
+        contacts: DemoAdapter.getContacts(state.demoScenario),
       });
     }
     dispatch({ type: 'NAVIGATE', screen: 'showing' });
+  };
+
+  const handleSpeakEdit = () => {
+    if (!editingSlot) return;
+    dispatch({ type: 'SET_EDIT_SLOT', slot: editingSlot });
+    setEditingSlot(null);
+    dispatch({ type: 'START_LISTENING' });
   };
 
   const handleEditSlotClick = (slotKey: SlotKey, currentValue: string | null) => {
@@ -34,7 +55,14 @@ export const SummaryScreen: FC = () => {
 
   const handleSaveEdit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!editingSlot) return;
+    if (!editingSlot || !editValue.trim() || state.busy) return;
+
+    if (!isDemo) {
+      // 그 항목만 다시 정리(원문 근거 검증 포함). 처음부터 다시 하지 않는다(F5)
+      void live.submitUserText(editValue, 'text', undefined, { editSlot: editingSlot });
+      setEditingSlot(null);
+      return;
+    }
 
     const updatedSlots = {
       ...state.slots,
@@ -137,7 +165,10 @@ export const SummaryScreen: FC = () => {
 
         {/* 부분 수정 모달/인라인 폼 */}
         {editingSlot && (
-          <form onSubmit={handleSaveEdit} className="p-4 mb-5 bg-blue-50 border-2 border-blue-400 rounded-2xl">
+          <form
+            onSubmit={handleSaveEdit}
+            className="p-4 mb-5 bg-blue-50 border-2 border-blue-400 rounded-2xl"
+          >
             <label htmlFor="slot-edit-input" className="block text-sm font-bold text-blue-900 mb-2">
               항목 내용 수정:
             </label>
@@ -148,8 +179,24 @@ export const SummaryScreen: FC = () => {
               onChange={(e) => setEditValue(e.target.value)}
               className="w-full p-3 border border-blue-300 rounded-xl text-lg font-bold mb-3 focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
+            {!isDemo && (
+              <BigButton
+                type="button"
+                variant="secondary"
+                icon="🎙️"
+                onClick={handleSpeakEdit}
+                className="min-h-[48px] py-2 text-base mb-2"
+              >
+                말로 다시 하기
+              </BigButton>
+            )}
             <div className="flex gap-2">
-              <BigButton type="submit" variant="primary" className="min-h-[48px] py-2 text-base">
+              <BigButton
+                type="submit"
+                variant="primary"
+                className="min-h-[48px] py-2 text-base"
+                disabled={state.busy}
+              >
                 수정 완료
               </BigButton>
               <BigButton
@@ -182,7 +229,9 @@ export const SummaryScreen: FC = () => {
               ) : (
                 state.history.map((msg, i) => (
                   <div key={i} className="flex gap-2">
-                    <span className="font-bold text-blue-600">{msg.role === 'user' ? '나:' : 'AI:'}</span>
+                    <span className="font-bold text-blue-600">
+                      {msg.role === 'user' ? '나:' : 'AI:'}
+                    </span>
                     <span>{msg.text}</span>
                   </div>
                 ))
@@ -193,12 +242,18 @@ export const SummaryScreen: FC = () => {
       </div>
 
       <div className="space-y-3 pt-2">
+        {state.busy && (
+          <p role="status" className="text-center text-base font-bold text-blue-700">
+            ⏳ 정리하고 있어요…
+          </p>
+        )}
         <BigButton
           variant="accent"
           onClick={handleConfirm}
           icon="📱"
           className="min-h-[72px] text-xl bg-emerald-600 hover:bg-emerald-700 shadow-xl"
           subtitle="담당자에게 보여줄 큰 글씨 화면으로 전환합니다"
+          disabled={state.busy}
         >
           맞아요 (창구 보여주기)
         </BigButton>

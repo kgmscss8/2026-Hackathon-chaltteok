@@ -1,60 +1,65 @@
-import { useState, type FC } from 'react';
+import { useEffect, useState, type FC } from 'react';
 import { BigButton, ScreenTitle, AiMayBeWrong } from '../components/index.js';
 import { DemoAdapter } from '../demo/index.js';
-import { useAppState } from '../state/index.js';
+import { useAppState, useLiveActions } from '../state/index.js';
+import { speak, stopSpeaking } from '../voice/speak.js';
+
+const DIRECT = '직접 말할게요';
 
 export const AskingScreen: FC = () => {
   const { state, dispatch } = useAppState();
+  const live = useLiveActions();
   const [showDirectInput, setShowDirectInput] = useState(false);
   const [directText, setDirectText] = useState('');
+  const isDemo = state.mode === 'demo';
 
   const currentQuestion = state.nextQuestion || '추가로 확인이 필요한 사항이 있습니다.';
-  const quickAnswers = state.quickAnswers.length > 0
-    ? state.quickAnswers
-    : ['네, 맞아요', '아니에요', '잘 모르겠어요', '직접 말할게요'];
+  const quickAnswers =
+    state.quickAnswers.length > 0
+      ? state.quickAnswers
+      : ['네, 맞아요', '아니에요', '해당 없어요', '잘 모르겠어요', DIRECT];
 
-  const handleSelectAnswer = (answer: string) => {
-    if (answer === '직접 말할게요') {
+  // 실제 모드: 질문을 소리로 읽어 준다(실패하면 조용히 넘어가고 글자는 그대로)
+  useEffect(() => {
+    if (isDemo || !state.nextQuestion) return;
+    void speak(state.nextQuestion, state.language);
+    return () => stopSpeaking();
+  }, [isDemo, state.nextQuestion, state.language]);
+
+  const handleSelectAnswer = (answer: string, source: 'quick' | 'text' = 'quick') => {
+    if (state.busy) return;
+    if (answer === DIRECT) {
       setShowDirectInput(true);
+      return;
+    }
+
+    if (!isDemo) {
+      stopSpeaking();
+      void live.submitUserText(answer, source);
       return;
     }
 
     dispatch({
       type: 'ADD_MESSAGE',
-      message: {
-        role: 'user',
-        text: answer,
-        language: state.language,
-        source: 'quick',
-      },
+      message: { role: 'user', text: answer, language: state.language, source },
     });
 
-    if (state.mode === 'demo') {
-      // 데모 모드에서 다음 스텝 진행
-      const nextStepIndex = state.askCount; // 1이면 index 1, 2이면 index 2
-      const turnResult = DemoAdapter.getTurnResult('pension', nextStepIndex);
+    // 체험 모드: 다음 예시 단계로
+    const turnResult = DemoAdapter.getTurnResult(state.demoScenario, state.askCount);
+    dispatch({
+      type: 'SET_TURN_RESULT',
+      slots: turnResult.slots,
+      nextQuestion: turnResult.next_question,
+      quickAnswers: turnResult.quick_answers,
+      askCount: turnResult.ask_count,
+      done: turnResult.done,
+      crisis: turnResult.crisis,
+      questionsToAsk: turnResult.questions_to_ask,
+    });
 
-      dispatch({
-        type: 'SET_TURN_RESULT',
-        slots: turnResult.slots,
-        nextQuestion: turnResult.next_question,
-        quickAnswers: turnResult.quick_answers,
-        askCount: turnResult.ask_count,
-        done: turnResult.done,
-        crisis: turnResult.crisis,
-      });
-
-      if (turnResult.done) {
-        // 완료 시 카드와 연락처 설정
-        dispatch({
-          type: 'SET_CARD',
-          card: DemoAdapter.getSummaryCard('pension'),
-        });
-        dispatch({
-          type: 'SET_CONTACTS',
-          contacts: DemoAdapter.getContacts('pension'),
-        });
-      }
+    if (turnResult.done) {
+      dispatch({ type: 'SET_CARD', card: DemoAdapter.getSummaryCard(state.demoScenario) });
+      dispatch({ type: 'SET_CONTACTS', contacts: DemoAdapter.getContacts(state.demoScenario) });
     }
   };
 
@@ -62,8 +67,14 @@ export const AskingScreen: FC = () => {
     e.preventDefault();
     if (!directText.trim()) return;
     setShowDirectInput(false);
-    handleSelectAnswer(directText);
+    handleSelectAnswer(directText, 'text');
     setDirectText('');
+  };
+
+  const handleSpeakAnswer = () => {
+    stopSpeaking();
+    setShowDirectInput(false);
+    dispatch({ type: 'START_LISTENING' });
   };
 
   return (
@@ -77,19 +88,48 @@ export const AskingScreen: FC = () => {
 
         {/* 질문 카드 (22px+ 굵은 텍스트) */}
         <div className="bg-blue-50 border-2 border-blue-300 rounded-2xl p-6 mb-6 shadow-sm">
-          <div className="flex items-center gap-2 text-blue-700 text-sm font-bold mb-2">
+          <div className="flex items-center justify-between gap-2 text-blue-700 text-sm font-bold mb-2">
             <span>🤖 AI 확인 질문</span>
+            {!isDemo && state.nextQuestion && (
+              <button
+                type="button"
+                onClick={() => void speak(state.nextQuestion!, state.language)}
+                className="text-xs bg-white border border-blue-200 rounded-lg px-2 py-1"
+              >
+                🔊 다시 듣기
+              </button>
+            )}
           </div>
           <p className="text-2xl md:text-3xl font-extrabold text-blue-950 leading-snug">
             "{currentQuestion}"
           </p>
         </div>
 
-        {/* 직접 입력 폼 */}
+        {state.busy && (
+          <p role="status" className="mb-4 text-center text-base font-bold text-blue-700">
+            ⏳ 정리하고 있어요…
+          </p>
+        )}
+
+        {/* 직접 답하기: 말로 하거나 글로 쓰기 */}
         {showDirectInput && (
-          <form onSubmit={handleDirectSubmit} className="mb-5 p-4 bg-gray-50 border border-gray-300 rounded-2xl">
+          <form
+            onSubmit={handleDirectSubmit}
+            className="mb-5 p-4 bg-gray-50 border border-gray-300 rounded-2xl"
+          >
+            {!isDemo && (
+              <BigButton
+                type="button"
+                variant="primary"
+                icon="🎙️"
+                onClick={handleSpeakAnswer}
+                className="mb-3 text-base py-3"
+              >
+                말로 답하기
+              </BigButton>
+            )}
             <label htmlFor="direct-answer" className="block text-sm font-bold text-gray-700 mb-2">
-              답변을 직접 입력해 주세요:
+              또는 글로 적어 주세요:
             </label>
             <input
               id="direct-answer"
@@ -100,7 +140,12 @@ export const AskingScreen: FC = () => {
               className="w-full p-3 border border-gray-300 rounded-xl text-base focus:ring-2 focus:ring-blue-500 focus:outline-none mb-3"
             />
             <div className="flex gap-2">
-              <BigButton type="submit" variant="accent" className="min-h-[48px] py-2 text-base">
+              <BigButton
+                type="submit"
+                variant="accent"
+                className="min-h-[48px] py-2 text-base"
+                disabled={state.busy}
+              >
                 입력 완료
               </BigButton>
               <BigButton
@@ -121,13 +166,21 @@ export const AskingScreen: FC = () => {
             아래 보기 중에서 골라주세요:
           </span>
           {quickAnswers.map((answer, index) => {
-            const isSpecial = answer === '해당 없어요' || answer === '잘 모르겠어요' || answer === '직접 말할게요';
+            // /api/turn은 끝 3개를 항상 "해당 없어요·잘 모르겠어요·직접 말할게요"(사용자 언어)로 준다
+            const fromEnd = quickAnswers.length - index;
+            const isSpecial =
+              answer === '해당 없어요' ||
+              answer === '잘 모르겠어요' ||
+              answer === DIRECT ||
+              (!isDemo && fromEnd <= 3);
+            const isDirect = answer === DIRECT || (!isDemo && fromEnd === 1);
             return (
               <BigButton
                 key={index}
                 variant={isSpecial ? 'secondary' : 'primary'}
-                onClick={() => handleSelectAnswer(answer)}
+                onClick={() => handleSelectAnswer(isDirect ? DIRECT : answer)}
                 className={isSpecial ? 'text-base font-semibold py-3.5' : 'text-lg font-bold'}
+                disabled={state.busy}
               >
                 {answer}
               </BigButton>

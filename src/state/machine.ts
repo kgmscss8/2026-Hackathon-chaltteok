@@ -12,7 +12,10 @@ export const INITIAL_SLOTS: Slots = {
 export const INITIAL_STATE: AppState = {
   screen: 'consent',
   previousScreen: null,
-  mode: 'demo', // 타 파트 개발 전까지 demo 기본 활성화 가능
+  mode: 'live', // 실제 API 사용. 예시 체험·사용량 초과 시 'demo'로 전환
+  demoScenario: 'pension',
+  busy: false,
+  questionsToAsk: [],
   consentGiven: false,
   language: 'ko',
   history: [],
@@ -84,13 +87,15 @@ export function appReducer(state: AppState, action: AppAction): AppState {
         history: [...state.history, action.message],
       };
 
-    case 'SET_TURN_RESULT':
+    case 'SET_TURN_RESULT': {
+      const questionsToAsk = action.questionsToAsk ?? state.questionsToAsk;
       if (action.crisis) {
         return {
           ...state,
           previousScreen: state.screen,
           screen: 'crisis',
           slots: action.slots,
+          questionsToAsk,
         };
       }
       if (action.done) {
@@ -102,6 +107,7 @@ export function appReducer(state: AppState, action: AppAction): AppState {
           askCount: action.askCount,
           nextQuestion: null,
           quickAnswers: [],
+          questionsToAsk,
         };
       }
       return {
@@ -112,7 +118,15 @@ export function appReducer(state: AppState, action: AppAction): AppState {
         askCount: action.askCount,
         nextQuestion: action.nextQuestion,
         quickAnswers: action.quickAnswers,
+        questionsToAsk,
       };
+    }
+
+    case 'SET_BUSY':
+      return { ...state, busy: action.busy };
+
+    case 'SET_DEMO_SCENARIO':
+      return { ...state, demoScenario: action.id };
 
     case 'SET_CARD':
       return {
@@ -163,6 +177,10 @@ export function appReducer(state: AppState, action: AppAction): AppState {
     case 'RESET_FLOW':
       return {
         ...state,
+        // 처음으로 돌아가면 동의한 사용자는 실제 모드로 복귀(동의 전에는 체험만 가능)
+        mode: state.consentGiven ? 'live' : 'demo',
+        busy: false,
+        questionsToAsk: [],
         screen: 'home',
         previousScreen: null,
         history: [],
