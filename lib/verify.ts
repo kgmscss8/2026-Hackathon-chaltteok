@@ -65,3 +65,27 @@ export function changedSlotKeys(before: Slots, after: Slots): SlotKey[] {
     (k) => before[k].value !== after[k].value || before[k].evidence !== after[k].evidence,
   );
 }
+
+/** 질문 겹침 판정 기준: 슬롯 근거가 질문 근거의 이 비율 이상을 차지하면 같은 말로 본다 */
+export const QUESTION_ECHO_RATIO = 0.6;
+
+/**
+ * 사용자가 묻는 말을 용건·원하는 것·날짜에 또 적은 경우를 지운다.
+ * 예: 질문 "뭐가 필요한지 모르겠어요"가 desired에도 들어감, "언제까지 해야 되는지"가 date에 들어감.
+ * "전입신고 얼마나 걸려요?"의 용건 "전입신고"처럼 질문의 짧은 일부인 경우는 남긴다.
+ */
+export function dropQuestionEchoes(slots: Slots, questionEvidences: string[]): Slots {
+  const questions = questionEvidences.map(normalizeForMatch).filter(Boolean);
+  if (questions.length === 0) return slots;
+  const out = { ...slots };
+  for (const k of ['purpose', 'desired', 'date'] as const) {
+    const ev = slots[k].evidence;
+    if (!filled(ev)) continue;
+    const s = normalizeForMatch(ev);
+    const echoes = questions.some(
+      (q) => s.includes(q) || (q.includes(s) && s.length >= q.length * QUESTION_ECHO_RATIO),
+    );
+    if (echoes) out[k] = EMPTY();
+  }
+  return out;
+}
