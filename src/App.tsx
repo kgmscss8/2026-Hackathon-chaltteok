@@ -1,9 +1,49 @@
-// 임시 화면 (Phase 0 뼈대). 파트 D가 교체한다.
+import { AppLayout } from './components/index.js';
+import {
+  ConsentScreen,
+  HomeScreen,
+  ListeningScreen,
+  AskingScreen,
+  SummaryScreen,
+  ShowingScreen,
+  CrisisScreen,
+  ErrorScreen,
+} from './screens/index.js';
+import { StateProvider, useAppState } from './state/index.js';
+
+function MainRouter() {
+  const { state } = useAppState();
+
+  const renderScreen = () => {
+    switch (state.screen) {
+      case 'consent':
+        return <ConsentScreen />;
+      case 'home':
+        return <HomeScreen />;
+      case 'listening':
+        return <ListeningScreen />;
+      case 'asking':
+        return <AskingScreen />;
+      case 'summary':
+        return <SummaryScreen />;
+      case 'showing':
+        return <ShowingScreen />;
+      case 'crisis':
+        return <CrisisScreen />;
+      case 'error':
+        return <ErrorScreen />;
+      default:
+        return <HomeScreen />;
+    }
+  };
+
+  return <AppLayout>{renderScreen()}</AppLayout>;
+}
+
 export default function App() {
   return (
-    <main className="min-h-screen bg-white p-6 text-[17px] text-gray-900">
-      <h1 className="text-2xl font-bold">찰떡</h1>
-      <p className="mt-2">개떡같이 말해도 찰떡같이 알아듣는다.</p>
-    </main>
+    <StateProvider>
+      <MainRouter />
+    </StateProvider>
   );
 }
