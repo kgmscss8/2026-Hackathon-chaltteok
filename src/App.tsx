@@ -1,3 +1,4 @@
+import { lazy, Suspense, type ComponentType } from 'react';
 import { AppLayout } from './components/index.js';
 import {
   ConsentScreen,
@@ -10,6 +11,16 @@ import {
   ErrorScreen,
 } from './screens/index.js';
 import { StateProvider, useAppState } from './state/index.js';
+
+// 임시 라우트: /mic-test → B의 실기기 녹음·STT·TTS 확인용
+const micTestModules = import.meta.glob<Record<string, unknown>>('./voice/MicTest.tsx');
+const loadMicTest = micTestModules['./voice/MicTest.tsx'];
+const MicTest = loadMicTest
+  ? lazy(async () => {
+      const mod = await loadMicTest();
+      return { default: (mod.default ?? mod.MicTest) as ComponentType };
+    })
+  : null;
 
 function MainRouter() {
   const { state } = useAppState();
@@ -41,6 +52,20 @@ function MainRouter() {
 }
 
 export default function App() {
+  if (typeof window !== 'undefined' && window.location.pathname === '/mic-test') {
+    return (
+      <main className="min-h-screen bg-white p-6 text-[17px] text-gray-900">
+        {MicTest ? (
+          <Suspense fallback={<p>불러오는 중…</p>}>
+            <MicTest />
+          </Suspense>
+        ) : (
+          <p>아직 src/voice/MicTest.tsx가 없습니다. B의 브랜치 미리보기에서 열어 주세요.</p>
+        )}
+      </main>
+    );
+  }
+
   return (
     <StateProvider>
       <MainRouter />
