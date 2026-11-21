@@ -3,7 +3,7 @@ import { ApiFailure, MESSAGE_KO } from '@lib/errors';
 
 export async function fetchTtsAudio(text: string, language: Language): Promise<Blob> {
   const controller = new AbortController();
-  const timeoutId = window.setTimeout(() => controller.abort(), 15_000);
+  const timeoutId = globalThis.setTimeout(() => controller.abort(), 15_000);
 
   try {
     const res = await fetch('/api/tts', {
@@ -28,6 +28,6 @@ export async function fetchTtsAudio(text: string, language: Language): Promise<B
       message_ko: MESSAGE_KO.AI_UNAVAILABLE,
     });
   } finally {
-    window.clearTimeout(timeoutId);
+    globalThis.clearTimeout(timeoutId);
   }
 }

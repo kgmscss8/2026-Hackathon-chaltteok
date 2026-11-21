@@ -28,7 +28,7 @@ export async function transcribe(
   }
 
   const controller = new AbortController();
-  const timeoutId = window.setTimeout(() => controller.abort(), TIMEOUT_MS);
+  const timeoutId = globalThis.setTimeout(() => controller.abort(), TIMEOUT_MS);
 
   try {
     const res = await fetch('/api/transcribe', {
@@ -82,6 +82,6 @@ export async function transcribe(
       message_ko: MESSAGE_KO.AI_UNAVAILABLE,
     });
   } finally {
-    window.clearTimeout(timeoutId);
+    globalThis.clearTimeout(timeoutId);
   }
 }
