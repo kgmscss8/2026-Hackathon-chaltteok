@@ -30,6 +30,7 @@ import {
 } from '../lib/schema.js';
 import {
   changedSlotKeys,
+  normalizeForMatch,
   verifyEvidenceByLlm,
   verifyEvidenceByText,
   type FaithfulnessJudge,
@@ -43,7 +44,7 @@ const LlmTurn = z.object({
   slots: z.object(
     Object.fromEntries(SLOT_KEYS.map((k) => [k, SlotValue])) as Record<SlotKey, typeof SlotValue>,
   ),
-  questions_to_ask: z.array(z.string()),
+  questions_to_ask: z.array(z.object({ question: z.string(), evidence: z.string() })),
   worth_asking: z.array(z.enum(SLOT_KEYS)),
   crisis: z.boolean(),
 });
@@ -130,14 +131,19 @@ export function askedSlots(history: TurnRequest['history']): Set<SlotKey> {
   return asked;
 }
 
-/** 다음에 물을 슬롯: 비어 있고, 아직 안 물었고, (누구의 일·용건이거나 LLM이 물을 가치가 있다고 본) 슬롯 중 우선순위 첫 번째 */
+/**
+ * 다음에 물을 슬롯: 비어 있고, 아직 안 물었고, (누구의 일·용건이거나 LLM이 물을 가치가 있다고 본) 슬롯 중 우선순위 첫 번째.
+ * 사용자가 이미 궁금한 점을 말했으면(물어볼 것이 있으면) "궁금한 점"은 다시 묻지 않는다.
+ */
 export function pickNextSlot(
   slots: Slots,
   asked: Set<SlotKey>,
   worthAsking: readonly SlotKey[],
+  hasQuestions = false,
 ): SlotKey | null {
   for (const m of SLOT_META) {
     if (hasValue(slots[m.key]) || asked.has(m.key)) continue;
+    if (m.key === 'question' && hasQuestions) continue;
     if (m.key === 'whose_matter' || m.key === 'purpose' || worthAsking.includes(m.key)) {
       return m.key;
     }
@@ -145,11 +151,22 @@ export function pickNextSlot(
   return null;
 }
 
-function cleanQuestions(list: string[]): string[] {
+/**
+ * 물어볼 것: 근거(evidence)가 사용자 발화에 그대로 있는 것만 남긴다.
+ * 찰떡의 되묻기 문장이나 LLM이 지어낸 질문은 근거가 없어 빠진다. 중복 제거, 최대 3개.
+ */
+export function cleanQuestions(
+  list: { question: string; evidence: string }[],
+  userTexts: string[],
+): string[] {
+  const haystacks = userTexts.map(normalizeForMatch);
   const out: string[] = [];
-  for (const q of list) {
-    const t = q.replace(/\s+/g, ' ').trim();
-    if (t && !out.includes(t)) out.push(t);
+  for (const { question, evidence } of list) {
+    const q = question.replace(/\s+/g, ' ').trim();
+    const ev = normalizeForMatch(evidence);
+    if (!q || !ev || !haystacks.some((h) => h.includes(ev))) continue;
+    if (slotForQuestion(q) || out.includes(q)) continue;
+    out.push(q);
     if (out.length === QUESTIONS_TO_ASK_MAX) break;
   }
   return out;
@@ -200,14 +217,14 @@ export async function processTurn(
   );
 
   const crisis = llm.crisis || detectCrisisKeywords(lastUser);
-  const questions = cleanQuestions(llm.questions_to_ask);
+  const questions = cleanQuestions(llm.questions_to_ask, userTexts);
   const fixed = [...FIXED_QUICK_ANSWERS[req.language]];
 
   // 다음 질문은 코드로 정한다(이미 값이 있거나 이미 물은 슬롯은 묻지 않음, 최대 3번)
   const next =
     edit || req.ask_count >= MAX_QUESTIONS
       ? null
-      : pickNextSlot(verified, askedSlots(history), llm.worth_asking);
+      : pickNextSlot(verified, askedSlots(history), llm.worth_asking, questions.length > 0);
 
   const result: TurnResult = next
     ? {

@@ -46,7 +46,7 @@ function req(p: Partial<TurnRequest> & { history: Message[] }): TurnRequest {
 
 type LlmTurn = {
   slots?: Partial<Record<SlotKey, { value: string | null; evidence: string | null }>>;
-  questions_to_ask?: string[];
+  questions_to_ask?: { question: string; evidence: string }[];
   worth_asking?: SlotKey[];
   crisis?: boolean;
 };
@@ -83,7 +83,7 @@ describe('processTurn', () => {
         purpose: { value: '기초연금 신청', evidence: '엄마 기초연금 신청하려는데' },
         question: { value: '필요한 것이 무엇인지', evidence: '뭐가 필요한지 모르겠어요' },
       },
-      questions_to_ask: ['신청에 필요한 것이 무엇인지'],
+      questions_to_ask: [{ question: '신청에 필요한 것이 무엇인지', evidence: '뭐가 필요한지' }],
       worth_asking: ['date', 'desired'],
     });
     const r = await processTurn(
@@ -257,9 +257,33 @@ describe('processTurn', () => {
   });
 
   it('물어볼 것은 중복을 빼고 최대 3개', async () => {
-    const { complete } = fakeLlm({ questions_to_ask: ['a', 'a', ' b ', 'c', 'd'] });
+    const q = (question: string) => ({ question, evidence: '등본요' });
+    const { complete } = fakeLlm({ questions_to_ask: [q('a'), q('a'), q(' b '), q('c'), q('d')] });
     const r = await processTurn(req({ history: [user('등본요')] }), complete);
     expect(r.questions_to_ask).toEqual(['a', 'b', 'c']);
+  });
+
+  it('물어볼 것: 근거가 원문에 없거나(지어낸 질문) 찰떡의 되묻기 문장이면 뺀다', async () => {
+    const { complete } = fakeLlm({
+      questions_to_ask: [
+        { question: '현재 안전한 곳에 계신가요?', evidence: '안전한 곳' },
+        { question: slotMeta('date').questions.ko, evidence: '이사' },
+        { question: '얼마나 걸리나요?', evidence: '얼마나 걸려요' },
+      ],
+    });
+    const r = await processTurn(
+      req({ history: [user('어제 이사 왔어요. 전입신고 얼마나 걸려요?')] }),
+      complete,
+    );
+    expect(r.questions_to_ask).toEqual(['얼마나 걸리나요?']);
+  });
+
+  it('물어볼 것이 이미 있으면 "궁금한 점"은 다시 묻지 않는다', async () => {
+    const s = emptySlots();
+    s.whose_matter = { value: '본인', evidence: '제 거' };
+    s.purpose = { value: '등본', evidence: '등본' };
+    expect(pickNextSlot(s, new Set(), ['question'], true)).toBeNull();
+    expect(pickNextSlot(s, new Set(), ['question'], false)).toBe('question');
   });
 
   it('사용자 발화가 없으면 BAD_REQUEST', async () => {
