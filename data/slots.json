@@ -1,0 +1,91 @@
+{
+  "version": 1,
+  "max_questions": 3,
+  "fixed_quick_answers": {
+    "ko": ["해당 없어요", "잘 모르겠어요", "직접 말할게요"],
+    "en": ["Not applicable", "I'm not sure", "I'll say it myself"],
+    "vi": ["Không liên quan", "Tôi không chắc", "Tôi sẽ tự nói"]
+  },
+  "slots": [
+    {
+      "key": "whose_matter",
+      "name_ko": "누구의 일",
+      "description_ko": "이 민원이 누구의 일인지. 본인인지, 가족 등 다른 사람을 대신하는지와 그 관계.",
+      "priority": 1,
+      "questions": {
+        "ko": "누구의 일로 오셨어요? 본인 일인가요, 다른 분을 대신하시나요?",
+        "en": "Whose matter is this? Is it for yourself, or are you here on someone else's behalf?",
+        "vi": "Việc này là của ai? Của chính bạn hay bạn làm thay cho người khác?"
+      },
+      "quick_answers": {
+        "ko": ["제 일이에요", "가족 대신이에요", "다른 사람 대신이에요"],
+        "en": ["It's for me", "For a family member", "For someone else"],
+        "vi": ["Việc của tôi", "Làm thay người nhà", "Làm thay người khác"]
+      }
+    },
+    {
+      "key": "purpose",
+      "name_ko": "용건",
+      "description_ko": "무엇 때문에 왔는지(사용자가 말한 그대로의 용건). 민원 종류를 판단해 이름 붙이지 않는다.",
+      "priority": 2,
+      "questions": {
+        "ko": "어떤 일로 오셨는지 편하게 말씀해 주세요.",
+        "en": "Please tell me, in your own words, what you came for.",
+        "vi": "Bạn hãy nói thoải mái xem bạn đến vì việc gì."
+      },
+      "quick_answers": {
+        "ko": ["무언가 신청하려고요", "물어볼 게 있어요", "서류를 떼려고요"],
+        "en": ["To apply for something", "I have a question", "To get a document"],
+        "vi": ["Để đăng ký một việc", "Tôi có điều muốn hỏi", "Để xin giấy tờ"]
+      }
+    },
+    {
+      "key": "desired",
+      "name_ko": "원하는 것",
+      "description_ko": "창구에서 결과적으로 바라는 것(신청 접수, 방법 안내, 상담 등). 사용자가 말한 범위에서만.",
+      "priority": 3,
+      "questions": {
+        "ko": "오늘 창구에서 어떻게 되길 바라세요?",
+        "en": "What would you like to get done at the counter today?",
+        "vi": "Hôm nay bạn mong muốn được giải quyết điều gì tại quầy?"
+      },
+      "quick_answers": {
+        "ko": ["오늘 신청까지 하고 싶어요", "방법만 알고 싶어요", "상담받고 싶어요"],
+        "en": ["I want to apply today", "I just want to know how", "I'd like some advice"],
+        "vi": ["Tôi muốn nộp đơn hôm nay", "Tôi chỉ muốn biết cách làm", "Tôi muốn được tư vấn"]
+      }
+    },
+    {
+      "key": "date",
+      "name_ko": "관련 날짜·기한",
+      "description_ko": "이 일과 관련된 날짜나 기한(이사한 날, 마감일, 언제까지 필요한지 등). 사용자가 말한 그대로.",
+      "priority": 4,
+      "questions": {
+        "ko": "이 일과 관련된 날짜나, 언제까지 해야 하는 기한이 있나요?",
+        "en": "Is there a date related to this, or a deadline you need to meet?",
+        "vi": "Có ngày nào liên quan, hoặc hạn chót nào bạn cần kịp không?"
+      },
+      "quick_answers": {
+        "ko": ["이번 주 안에요", "이번 달 안에요", "급하지 않아요"],
+        "en": ["Within this week", "Within this month", "It's not urgent"],
+        "vi": ["Trong tuần này", "Trong tháng này", "Không gấp"]
+      }
+    },
+    {
+      "key": "question",
+      "name_ko": "궁금한 점",
+      "description_ko": "담당자에게 물어보고 싶은 점. 찰떡은 답하지 않고 물어볼 것으로만 적는다.",
+      "priority": 5,
+      "questions": {
+        "ko": "담당자에게 꼭 물어보고 싶은 게 있으세요?",
+        "en": "Is there anything you especially want to ask the staff?",
+        "vi": "Bạn có điều gì muốn hỏi nhân viên không?"
+      },
+      "quick_answers": {
+        "ko": ["무엇이 필요한지", "얼마나 걸리는지", "대신 해도 되는지"],
+        "en": ["What I need to bring", "How long it takes", "Whether I can do it for someone"],
+        "vi": ["Cần mang gì", "Mất bao lâu", "Có làm thay được không"]
+      }
+    }
+  ]
+}

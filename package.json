@@ -10,7 +10,8 @@
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "eval:turn": "vitest run tests/evalTurn.test.ts --mode eval"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
