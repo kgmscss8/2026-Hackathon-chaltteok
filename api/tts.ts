@@ -1,8 +1,8 @@
-﻿import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { getOpenAI, MODELS } from '../lib/openai';
-import { sendError, fromOpenAIError } from '../lib/errors';
-import { maskPII } from '../lib/masking';
-import { TtsRequest } from '../lib/schema';
+import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { getOpenAI, MODELS } from '../lib/openai.js';
+import { sendError, fromOpenAIError } from '../lib/errors.js';
+import { maskPII } from '../lib/masking.js';
+import { TtsRequest } from '../lib/schema.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {

@@ -1,8 +1,8 @@
-﻿import type { VercelRequest, VercelResponse } from '@vercel/node';
+import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { toFile } from 'openai';
-import { getOpenAI, MODELS } from '../lib/openai';
-import { sendError, fromOpenAIError } from '../lib/errors';
-import { Language, TranscribeResponse } from '../lib/schema';
+import { getOpenAI, MODELS } from '../lib/openai.js';
+import { sendError, fromOpenAIError } from '../lib/errors.js';
+import { Language, TranscribeResponse } from '../lib/schema.js';
 
 export const config = {
   api: {
