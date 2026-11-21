@@ -1,0 +1,9 @@
+dist
+node_modules
+.vercel
+.taskmaster
+.claude
+chalddeok-prd-split
+package-lock.json
+*.md
+lib/schema.ts
