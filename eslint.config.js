@@ -33,13 +33,11 @@ export default tseslint.config(
       // 빠지면 로컬 테스트는 통과해도 배포에서 500으로 죽는다(PR #7).
       'no-restricted-syntax': [
         'error',
-        ...['ImportDeclaration', 'ExportNamedDeclaration', 'ExportAllDeclaration'].map(
-          (node) => ({
-            selector: `${node}[source.value=/^\\.\\.?\\//]:not([source.value=/\\.(js|json)$/])`,
-            message:
-              "api/·lib/의 상대 경로 import는 '.js'로 끝나야 합니다. 예: '../lib/schema.js' (없으면 Vercel에서 500)",
-          }),
-        ),
+        ...['ImportDeclaration', 'ExportNamedDeclaration', 'ExportAllDeclaration'].map((node) => ({
+          selector: `${node}[source.value=/^\\.\\.?\\//]:not([source.value=/\\.(js|json)$/])`,
+          message:
+            "api/·lib/의 상대 경로 import는 '.js'로 끝나야 합니다. 예: '../lib/schema.js' (없으면 Vercel에서 500)",
+        })),
       ],
     },
   },
