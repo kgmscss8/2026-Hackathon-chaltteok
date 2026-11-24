@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" role="img" aria-label="찰떡이: 다시 말씀해 주시겠어요?"><ellipse cx="34" cy="140" rx="10" ry="8" fill="#FFFDF7" stroke="#8A5A2B" stroke-width="3"/>
+  <ellipse cx="100" cy="174" rx="60" ry="7" fill="#8A5A2B" opacity=".15"/>
+  <path d="M30 140C22 95 55 54 100 54S178 95 170 140C166 162 140 170 100 170S34 162 30 140Z"
+        fill="#FFFDF7" stroke="#8A5A2B" stroke-width="3.5" stroke-linejoin="round"/>
+  <path d="M38 148C52 160 75 164 100 164S148 160 162 148C158 160 136 166 100 166S42 160 38 148Z" fill="#F3E6CB"/>
+  <ellipse cx="60" cy="86" rx="10" ry="5" fill="#fff" transform="rotate(-35 60 86)"/>
+  <ellipse cx="128" cy="78" rx="4.5" ry="3" fill="#A86F2C" transform="rotate(20 128 78)"/>
+  <ellipse cx="142" cy="96" rx="4" ry="2.8" fill="#A86F2C" transform="rotate(-25 142 96)"/>
+  <ellipse cx="117" cy="92" rx="3.5" ry="2.5" fill="#A86F2C" transform="rotate(40 117 92)"/>
+  <path d="M86 56L89 30Q100 26 111 30L114 56Z" fill="#2E2620" opacity=".88"/>
+  <ellipse cx="100" cy="56" rx="46" ry="8" fill="#2E2620" opacity=".82"/>
+  <path d="M90 34Q100 31 110 34" stroke="#fff" stroke-width="1.5" opacity=".25" fill="none"/>
+  <ellipse cx="66" cy="128" rx="9" ry="5.5" fill="#F2A39A" opacity=".55"/>
+  <ellipse cx="134" cy="128" rx="9" ry="5.5" fill="#F2A39A" opacity=".55"/>
+  <ellipse cx="80" cy="114" rx="5" ry="6.5" fill="#3D2A1A"/>
+  <path d="M114 114h12" stroke="#3D2A1A" stroke-width="3.5" stroke-linecap="round"/>
+  <path d="M72 101l14 3" stroke="#8A5A2B" stroke-width="2.5" stroke-linecap="round"/><path d="M94 127Q100 124 106 128" stroke="#3D2A1A" stroke-width="3" fill="none" stroke-linecap="round"/>
+  <path d="M176 96L158 140" stroke="#9C6B3A" stroke-width="5" stroke-linecap="round"/>
+  <path d="M158 138Q151 148 150 158Q158 152 163 141Z" fill="#2E2620"/>
+  <ellipse cx="166" cy="122" rx="10" ry="8" fill="#FFFDF7" stroke="#8A5A2B" stroke-width="3"/><text x="164" y="52" font-family="sans-serif" font-weight="800" font-size="40" fill="#E8B04A">?</text>
+</svg>
