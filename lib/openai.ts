@@ -8,7 +8,8 @@ import { ApiFailure } from './errors.js';
 export const MODELS = {
   transcribe: 'gpt-4o-mini-transcribe',
   chat: 'gpt-4.1-mini',
-  tts: 'gpt-4o-mini-tts',
+  // gpt-4o-mini-tts는 한국어·베트남어 낭독이 엉뚱한 말로 나와(운영 실측: 같은 문장을 STT가 다른 말로 인식) tts-1 사용
+  tts: 'tts-1',
 } as const;
 
 let client: OpenAI | null = null;
