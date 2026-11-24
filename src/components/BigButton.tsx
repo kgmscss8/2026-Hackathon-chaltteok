@@ -1,17 +1,16 @@
 import type { ButtonHTMLAttributes, ReactNode } from 'react';
 
-export type ButtonVariant = 'primary' | 'secondary' | 'confirm' | 'danger' | 'ghost';
+export type ButtonVariant = 'primary' | 'outline' | 'soft' | 'muted' | 'dark' | 'ghost';
 
 const VARIANTS: Record<ButtonVariant, string> = {
-  primary:
-    'bg-blue-700 text-white hover:bg-blue-800 active:bg-blue-900 focus-visible:ring-blue-300',
-  secondary:
-    'bg-white text-gray-900 border-2 border-gray-400 hover:bg-gray-50 active:bg-gray-100 focus-visible:ring-gray-300',
-  confirm:
-    'bg-emerald-700 text-white hover:bg-emerald-800 active:bg-emerald-900 focus-visible:ring-emerald-300',
-  danger: 'bg-red-700 text-white hover:bg-red-800 active:bg-red-900 focus-visible:ring-red-300',
+  primary: 'bg-accent text-white hover:bg-accent-dark focus-visible:ring-accent/30',
+  outline: 'bg-white text-ink border-2 border-ink hover:bg-paper focus-visible:ring-ink/20',
+  soft: 'bg-white text-ink border-2 border-line-strong hover:border-ink-3 focus-visible:ring-accent/25',
+  muted:
+    'bg-paper-dim text-ink-2 border-2 border-line font-medium hover:border-ink-3 focus-visible:ring-accent/25',
+  dark: 'bg-accent-dark text-white hover:bg-ink focus-visible:ring-accent/30',
   ghost:
-    'bg-transparent text-gray-800 underline-offset-4 hover:underline focus-visible:ring-gray-300',
+    'bg-transparent text-ink-2 hover:text-ink underline-offset-4 hover:underline focus-visible:ring-accent/25',
 };
 
 export interface BigButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
@@ -20,7 +19,7 @@ export interface BigButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> 
   subtitle?: string;
 }
 
-/** 주요 버튼: 높이 64px 이상, 굵은 글씨, 색만이 아니라 글자·아이콘으로 구분 */
+/** 디자인 캔버스 버튼: 높이 64px 이상, 굵은 글씨, 둥근 모서리(16~20px) */
 export function BigButton({
   variant = 'primary',
   icon,
@@ -33,18 +32,14 @@ export function BigButton({
   return (
     <button
       type={type}
-      className={`w-full min-h-[64px] px-5 py-3 rounded-2xl flex flex-col items-center justify-center text-center font-bold text-xl leading-snug transition focus:outline-none focus-visible:ring-4 disabled:opacity-50 disabled:cursor-not-allowed ${VARIANTS[variant]} ${className}`}
+      className={`flex min-h-[64px] w-full flex-col items-center justify-center rounded-[18px] px-4 py-2 text-center text-[19px] font-bold leading-snug transition focus:outline-none focus-visible:ring-4 disabled:cursor-not-allowed disabled:opacity-50 ${VARIANTS[variant]} ${className}`}
       {...props}
     >
-      <span className="flex items-center justify-center gap-3">
-        {icon && (
-          <span className="text-2xl shrink-0" aria-hidden="true">
-            {icon}
-          </span>
-        )}
+      <span className="flex items-center justify-center gap-2">
+        {icon}
         <span>{children}</span>
       </span>
-      {subtitle && <span className="mt-1 text-base font-normal opacity-90">{subtitle}</span>}
+      {subtitle && <span className="mt-0.5 text-[15px] font-medium opacity-90">{subtitle}</span>}
     </button>
   );
 }

@@ -1,11 +1,11 @@
 import { useEffect } from 'react';
-import { BigButton } from '../components/index.js';
+import { BigButton, Card, Mascot } from '../components/index.js';
 import { errorText } from '../i18n/index.js';
 import { useT } from '../i18n/useT.js';
 import { useAppState, useFlow } from '../state/context.js';
 import { speak } from '../voice/speak.js';
 
-/** 오류 안내(F13): 쉬운 말 + 다시 하기·글로 쓰기·예시로 체험(사용량 초과면 체험을 먼저) */
+/** 오류 안내(F13): 찰떡이 "다시 말씀해 주시겠어요?" + 다시 하기·글로 쓰기·예시(사용량 초과면 예시를 먼저) */
 export function ErrorScreen() {
   const state = useAppState();
   const flow = useFlow();
@@ -19,27 +19,24 @@ export function ErrorScreen() {
   }, [message, state.uiLanguage]);
 
   return (
-    <div className="flex flex-1 flex-col gap-4" role="alert">
-      <h1 className="text-[28px] font-black">⚠️ {tr('error.title')}</h1>
-      <p className="rounded-2xl border-2 border-amber-500 bg-amber-50 p-5 text-xl font-bold text-amber-950">
-        {message}
-      </p>
-      <div className="mt-auto space-y-3 pt-4">
-        <BigButton
-          variant={rateLimited ? 'secondary' : 'primary'}
-          icon="🔄"
-          onClick={() => flow.leaveError()}
-        >
+    <div className="flex flex-1 flex-col gap-4 pt-2" role="alert">
+      <div className="flex flex-col items-center gap-2 text-center">
+        <Mascot mood="puzzled" size={156} label={tr('mascot.name')} />
+        <h1 className="m-0 text-[30px] font-black leading-tight tracking-[-0.5px]">
+          {tr('error.title')}
+        </h1>
+      </div>
+      <Card className="p-5">
+        <p className="m-0 text-[20px] font-bold leading-[1.5]">{message}</p>
+      </Card>
+      <div className="mt-auto flex flex-col gap-2.5 pt-4">
+        <BigButton variant={rateLimited ? 'soft' : 'primary'} onClick={() => flow.leaveError()}>
           {tr('error.retry')}
         </BigButton>
-        <BigButton variant="secondary" icon="✏️" onClick={() => flow.goHome('write')}>
+        <BigButton variant="soft" onClick={() => flow.goHome('write')}>
           {tr('error.write')}
         </BigButton>
-        <BigButton
-          variant={rateLimited ? 'primary' : 'secondary'}
-          icon="✨"
-          onClick={() => flow.browseDemo()}
-        >
+        <BigButton variant={rateLimited ? 'primary' : 'soft'} onClick={() => flow.browseDemo()}>
           {tr('error.demo')}
         </BigButton>
       </div>
