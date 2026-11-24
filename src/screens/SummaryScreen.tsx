@@ -3,8 +3,14 @@ import { SLOT_KEYS, type SlotKey } from '@lib/schema';
 import {
   AiNotice,
   BigButton,
+  Card,
+  CheckIcon,
+  Mascot,
+  PencilIcon,
   PushToTalkButton,
-  ScreenTitle,
+  QuestionIcon,
+  RedoIcon,
+  SpeakPill,
   TextComposer,
 } from '../components/index.js';
 import { slotLabel } from '../i18n/index.js';
@@ -12,9 +18,8 @@ import { useT } from '../i18n/useT.js';
 import { useAppState, useFlow } from '../state/context.js';
 
 /**
- * 화면 4: 요약 확인(F4·F5). 항목별로 크게 보여 주고 읽어 준다.
- * 틀린 항목만 눌러 말로·글로 고친다(그 항목만 다시 정리, 처음부터 다시 하지 않음).
- * "내가 한 말 보기"로 원문과 각 항목의 근거를 확인한다.
+ * 화면 4(디자인 5번 "요약 확인", F4·F5). 항목별로 크게 보여 주고 읽어 준다.
+ * 틀린 항목만 눌러 말로·글로 고친다(그 항목만 다시 정리). 근거 없는 항목은 "확인 못 함".
  */
 export function SummaryScreen() {
   const state = useAppState();
@@ -24,7 +29,6 @@ export function SummaryScreen() {
   const busy = state.phase !== 'idle';
   const lang = state.uiLanguage;
   const editing = state.editSlot;
-  const unknown = tr('summary.unknown');
 
   const rows = SLOT_KEYS.map((key) => ({
     key,
@@ -34,55 +38,60 @@ export function SummaryScreen() {
   }));
   const speakText = [
     tr('summary.readAll'),
-    ...rows.map((r) => `${r.label}: ${r.value ?? unknown}`),
+    ...rows.map((r) => `${r.label}: ${r.value ?? tr('summary.unconfirmed')}`),
   ].join(' ');
-
   const openEdit = (key: SlotKey) => flow.startEdit(editing === key ? null : key);
+  const showEvidence = showWords || state.language !== 'ko';
 
   return (
-    <div className="flex flex-1 flex-col gap-4">
-      <ScreenTitle
-        title={tr('summary.title')}
-        subtitle={tr('summary.subtitle')}
-        speakText={speakText}
-      />
-      <AiNotice />
+    <div className="flex flex-1 flex-col gap-3.5">
+      <div className="flex items-end justify-between gap-2">
+        <h1 className="m-0 text-[32px] font-black leading-tight tracking-[-0.5px]">
+          {tr('summary.title')}
+        </h1>
+        <Mascot mood="done" size={92} label={tr('mascot.name')} />
+      </div>
+      <SpeakPill text={speakText} auto />
 
-      <ul className="space-y-3">
-        {rows.map((r) => (
-          <li key={r.key}>
+      <Card className="px-5 py-1">
+        {rows.map((r, i) => (
+          <div key={r.key} className={i < rows.length - 1 ? 'border-b-2 border-line-soft' : ''}>
             <button
               type="button"
               onClick={() => openEdit(r.key)}
               aria-expanded={editing === r.key}
               disabled={busy}
-              className={`w-full rounded-2xl border-2 p-4 text-left transition focus:outline-none focus-visible:ring-4 focus-visible:ring-blue-300 ${
-                editing === r.key
-                  ? 'border-blue-700 bg-blue-50'
-                  : 'border-gray-300 bg-white hover:border-blue-500'
-              }`}
+              className="flex w-full flex-col gap-1 py-3.5 text-left focus:outline-none focus-visible:ring-4 focus-visible:ring-accent/25"
             >
-              <span className="flex items-center justify-between text-base font-bold text-gray-700">
+              <span className="flex w-full items-center justify-between text-[15px] font-bold text-ink-3">
                 <span>{r.label}</span>
-                <span className="text-blue-800">✎ {tr('summary.fix')}</span>
+                <span className="flex items-center gap-1 text-accent">
+                  <PencilIcon size={16} />
+                  {tr('summary.fix')}
+                </span>
               </span>
-              <span
-                className={`mt-1 block text-[22px] font-black leading-snug ${r.value ? 'text-gray-950' : 'text-gray-500'}`}
-              >
-                {r.value ?? `— ${unknown}`}
-              </span>
-              {(showWords || state.language !== 'ko') && r.evidence && (
-                <span className="mt-2 block rounded-lg bg-gray-100 px-3 py-2 text-base text-gray-800">
+              {r.value ? (
+                <span className="text-[21px] font-bold leading-snug">{r.value}</span>
+              ) : (
+                <span className="inline-flex items-center gap-1.5 self-start rounded-[10px] bg-warn-bg px-3 py-1.5 text-[16px] font-bold text-warn">
+                  <QuestionIcon size={18} />
+                  {tr('summary.unconfirmed')}
+                </span>
+              )}
+              {showEvidence && r.evidence && (
+                <span className="text-[15px] text-ink-3">
                   {tr('summary.evidence')}: “{r.evidence}”
                 </span>
               )}
             </button>
 
             {editing === r.key && (
-              <div className="mt-2 space-y-3 rounded-2xl border-2 border-blue-300 p-3">
-                <p className="text-lg font-bold">{tr('summary.fixTitle', { label: r.label })}</p>
+              <div className="mb-4 flex flex-col gap-3 rounded-[16px] bg-paper p-3">
+                <p className="m-0 text-[17px] font-bold">
+                  {tr('summary.fixTitle', { label: r.label })}
+                </p>
                 {state.mode === 'live' && (
-                  <PushToTalkButton label={tr('ptt.fix')} size="lg" disabled={busy} />
+                  <PushToTalkButton label={tr('ptt.fix')} shape="pill" disabled={busy} />
                 )}
                 <TextComposer
                   label={tr('summary.fixWrite')}
@@ -95,44 +104,51 @@ export function SummaryScreen() {
                 />
               </div>
             )}
-          </li>
+          </div>
         ))}
-      </ul>
+      </Card>
 
-      <section>
+      <div className="text-[16px] text-ink-3">{tr('summary.tapToFix')}</div>
+
+      <button
+        type="button"
+        aria-expanded={showWords}
+        onClick={() => setShowWords((v) => !v)}
+        className="self-start text-[16px] font-bold text-accent underline underline-offset-4"
+      >
+        {showWords ? tr('summary.hideWords') : tr('summary.myWords')}
+      </button>
+      {showWords && (
+        <ol className="m-0 flex flex-col gap-2 rounded-[16px] border-2 border-line bg-white p-4 pl-8">
+          {state.history
+            .filter((m) => m.role === 'user')
+            .map((m, i) => (
+              <li key={i} className="text-[17px]">
+                “{m.text}”
+              </li>
+            ))}
+        </ol>
+      )}
+
+      <AiNotice />
+
+      <div className="mt-auto grid grid-cols-2 gap-2.5 pt-2">
         <BigButton
-          variant="ghost"
-          aria-expanded={showWords}
-          onClick={() => setShowWords((v) => !v)}
+          variant="outline"
+          icon={<RedoIcon size={26} />}
+          className="!min-h-[76px] !rounded-[20px]"
+          disabled={busy}
+          onClick={() => flow.goHome()}
         >
-          {showWords ? tr('summary.hideWords') : tr('summary.myWords')}
+          {tr('summary.redo')}
         </BigButton>
-        {showWords && (
-          <ol className="mt-2 space-y-2 rounded-2xl border-2 border-gray-200 bg-gray-50 p-4">
-            {state.history
-              .filter((m) => m.role === 'user')
-              .map((m, i) => (
-                <li key={i} className="text-lg">
-                  <span className="font-bold text-blue-800">{tr('summary.me')}:</span> {m.text}
-                </li>
-              ))}
-          </ol>
-        )}
-      </section>
-
-      <div className="mt-auto space-y-3 pt-2">
         <BigButton
-          variant="confirm"
-          icon="✅"
-          subtitle={tr('summary.confirmHint')}
+          icon={<CheckIcon size={28} width={2.6} />}
+          className="!min-h-[76px] !rounded-[20px] !text-[22px] !font-black"
           disabled={busy || !!editing}
-          className="min-h-[88px] text-2xl"
           onClick={() => void flow.confirm()}
         >
           {tr('summary.confirm')}
-        </BigButton>
-        <BigButton variant="ghost" disabled={busy} onClick={() => flow.goHome()}>
-          {tr('summary.restart')}
         </BigButton>
       </div>
     </div>

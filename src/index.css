@@ -1,1 +1,55 @@
 @import 'tailwindcss';
+
+/* 찰떡 디자인 토큰 (디자인 캔버스 "찰떡 UI/UX" 기준) */
+@theme {
+  --font-sans: 'Noto Sans KR', 'Apple SD Gothic Neo', 'Malgun Gothic', system-ui, sans-serif;
+  --color-paper: #f6f4ef;
+  --color-paper-dim: #efede7;
+  --color-ink: #16191d;
+  --color-ink-2: #33373d;
+  --color-ink-3: #4a4f57;
+  --color-line: #d9d5cc;
+  --color-line-strong: #c9c4b9;
+  --color-line-soft: #ece9e2;
+  --color-accent: #1d4ed8;
+  --color-accent-dark: #1e3a8a;
+  --color-accent-soft: #e8eefc;
+  --color-warn-bg: #fdecc8;
+  --color-warn: #7a4300;
+  --color-safe-bg: #e9f3ee;
+  --color-safe: #14532d;
+  --color-mochi: #e8b04a;
+  --color-mochi-soft: #fbf2dc;
+  --color-danger: #b42318;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+body {
+  margin: 0;
+  background: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  /* 한국어는 낱말 단위로 줄바꿈, 너무 긴 낱말만 쪼갠다 */
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+
+@keyframes mochi-bob {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-4px);
+  }
+}
+.mochi-bob {
+  animation: mochi-bob 2.4s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .mochi-bob {
+    animation: none;
+  }
+}

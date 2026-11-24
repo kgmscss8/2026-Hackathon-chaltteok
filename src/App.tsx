@@ -1,11 +1,12 @@
 import { lazy, Suspense, useEffect } from 'react';
-import { AppShell, VoiceProvider } from './components/index.js';
+import { AppShell, Mascot, VoiceProvider, type MascotMood } from './components/index.js';
 import {
   AskingScreen,
   ConsentScreen,
   CrisisScreen,
   ErrorScreen,
   HomeScreen,
+  SelectScreen,
   ShowingScreen,
   SummaryScreen,
 } from './screens/index.js';
@@ -28,7 +29,8 @@ function Screens() {
     case 'consent':
       return <ConsentScreen />;
     case 'home':
-      return <HomeScreen />;
+      // 보기에서 고르기(디자인 2번)는 홈의 한 단계로 보여 준다
+      return state.homePanel === 'pick' ? <SelectScreen /> : <HomeScreen />;
     case 'asking':
       // 질문이 바뀌면 "직접 말할게요" 입력 상태를 새로 시작
       return <AskingScreen key={state.nextQuestion ?? ''} />;
@@ -43,7 +45,32 @@ function Screens() {
   }
 }
 
+/** 개발 중에만: /mascot 에서 찰떡이 5가지 표정 확인 */
+function MascotGallery() {
+  const moods: MascotMood[] = ['hello', 'listening', 'writing', 'done', 'puzzled'];
+  return (
+    <main className="flex min-h-screen flex-wrap items-center justify-center gap-6 bg-paper p-6">
+      {moods.map((m) => (
+        <figure
+          key={m}
+          className="m-0 flex flex-col items-center gap-2 rounded-[22px] border-2 border-line bg-white p-4"
+        >
+          <Mascot mood={m} size={200} />
+          <figcaption className="text-[17px] font-bold">{m}</figcaption>
+        </figure>
+      ))}
+    </main>
+  );
+}
+
 export default function App() {
+  if (
+    import.meta.env.DEV &&
+    typeof window !== 'undefined' &&
+    window.location.pathname === '/mascot'
+  ) {
+    return <MascotGallery />;
+  }
   if (typeof window !== 'undefined' && window.location.pathname === '/mic-test') {
     return (
       <main className="min-h-screen bg-white p-5 text-[18px]">
