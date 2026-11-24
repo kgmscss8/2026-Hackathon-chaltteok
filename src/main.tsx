@@ -1,4 +1,4 @@
-// 임시 진입점 (Phase 0 뼈대). 파트 D가 교체한다.
+// 앱 진입점
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App';
