@@ -1,80 +1,65 @@
-import { lazy, Suspense, useEffect, type ComponentType } from 'react';
-import { AppLayout } from './components/index.js';
+import { lazy, Suspense, useEffect } from 'react';
+import { AppShell, VoiceProvider } from './components/index.js';
 import {
-  ConsentScreen,
-  HomeScreen,
-  ListeningScreen,
   AskingScreen,
-  SummaryScreen,
-  ShowingScreen,
+  ConsentScreen,
   CrisisScreen,
   ErrorScreen,
+  HomeScreen,
+  ShowingScreen,
+  SummaryScreen,
 } from './screens/index.js';
-import { StateProvider, useAppState, useLiveActions } from './state/index.js';
+import { AppProvider, useAppState, useFlow } from './state/context.js';
 
-// 임시 라우트: /mic-test → B의 실기기 녹음·STT·TTS 확인용
-const micTestModules = import.meta.glob<Record<string, unknown>>('./voice/MicTest.tsx');
-const loadMicTest = micTestModules['./voice/MicTest.tsx'];
-const MicTest = loadMicTest
-  ? lazy(async () => {
-      const mod = await loadMicTest();
-      return { default: (mod.default ?? mod.MicTest) as ComponentType };
-    })
-  : null;
+// 임시 점검 화면: /mic-test → 실기기 녹음·STT·TTS 확인(파트 B). 시연 전 삭제
+const MicTest = lazy(() => import('./voice/MicTest.js'));
 
-function MainRouter() {
-  const { state } = useAppState();
-  const live = useLiveActions();
+function Screens() {
+  const state = useAppState();
+  const flow = useFlow();
 
-  // 앱 시작 시 한 번: 만료된 요약 정리, 이전 동의 복원, 저장 목록 불러오기
+  // 앱 시작 시 한 번: 만료 요약 정리, 영구 저장 요청, 이전 동의·화면 언어 복원, 저장 목록
   useEffect(() => {
-    void live.startup();
-  }, [live]);
+    void flow.startup();
+  }, [flow]);
 
-  const renderScreen = () => {
-    switch (state.screen) {
-      case 'consent':
-        return <ConsentScreen />;
-      case 'home':
-        return <HomeScreen />;
-      case 'listening':
-        return <ListeningScreen />;
-      case 'asking':
-        return <AskingScreen />;
-      case 'summary':
-        return <SummaryScreen />;
-      case 'showing':
-        return <ShowingScreen />;
-      case 'crisis':
-        return <CrisisScreen />;
-      case 'error':
-        return <ErrorScreen />;
-      default:
-        return <HomeScreen />;
-    }
-  };
-
-  return <AppLayout>{renderScreen()}</AppLayout>;
+  if (!state.ready) return null;
+  switch (state.screen) {
+    case 'consent':
+      return <ConsentScreen />;
+    case 'home':
+      return <HomeScreen />;
+    case 'asking':
+      // 질문이 바뀌면 "직접 말할게요" 입력 상태를 새로 시작
+      return <AskingScreen key={state.nextQuestion ?? ''} />;
+    case 'summary':
+      return <SummaryScreen />;
+    case 'showing':
+      return <ShowingScreen />;
+    case 'crisis':
+      return <CrisisScreen />;
+    case 'error':
+      return <ErrorScreen />;
+  }
 }
 
 export default function App() {
   if (typeof window !== 'undefined' && window.location.pathname === '/mic-test') {
     return (
-      <main className="min-h-screen bg-white p-6 text-[17px] text-gray-900">
-        {MicTest ? (
-          <Suspense fallback={<p>불러오는 중…</p>}>
-            <MicTest />
-          </Suspense>
-        ) : (
-          <p>아직 src/voice/MicTest.tsx가 없습니다. B의 브랜치 미리보기에서 열어 주세요.</p>
-        )}
+      <main className="min-h-screen bg-white p-5 text-[18px]">
+        <Suspense fallback={<p>…</p>}>
+          <MicTest />
+        </Suspense>
       </main>
     );
   }
-
   return (
-    <StateProvider>
-      <MainRouter />
-    </StateProvider>
+    <AppProvider>
+      <VoiceProvider>
+        <AppShell>
+          <Screens />
+        </AppShell>
+      </VoiceProvider>
+    </AppProvider>
   );
 }

@@ -6,70 +6,84 @@ import type {
   SlotKey,
   Slots,
   SummaryCard,
-  ApiError,
-} from '../../lib/schema.js';
+  TurnResult,
+} from '@lib/schema';
+import type { ErrorKey, MessageKey } from '../i18n/index.js';
 
-export type ScreenState =
-  'consent' | 'home' | 'listening' | 'asking' | 'summary' | 'showing' | 'crisis' | 'error';
+/** 화면에 띄울 오류: key로 사용자 언어 문구를 고른다 */
+export interface AppError {
+  key: ErrorKey;
+  message_ko: string;
+}
 
-export type AppMode = 'live' | 'demo';
-export type DemoScenarioId = 'pension' | 'moving';
+/** 화면 0~5 + 언제든 끼어드는 위기·오류. "듣는 중"(화면 2)은 phase로 겹쳐 보여 준다 */
+export type Screen = 'consent' | 'home' | 'asking' | 'summary' | 'showing' | 'crisis' | 'error';
+export type Mode = 'live' | 'demo';
+export type DemoId = 'pension' | 'move';
+/** 듣는 중 겹침 화면 단계 */
+export type Phase = 'idle' | 'recording' | 'transcribing' | 'thinking';
+export type HomePanel = 'none' | 'write' | 'pick';
 
 export interface AppState {
-  screen: ScreenState;
-  previousScreen: ScreenState | null;
-  mode: AppMode;
-  /** 체험 모드에서 진행 중인 예시 시나리오 */
-  demoScenario: DemoScenarioId;
-  /** 서버 응답을 기다리는 중 (버튼 잠금·안내 표시용) */
-  busy: boolean;
-  /** /api/turn이 돌려준 "창구에서 물어볼 것" (요약 카드 ⑤) */
-  questionsToAsk: string[];
-  consentGiven: boolean;
+  /** 앱 시작 처리(저장소·동의 복원)가 끝났는지 */
+  ready: boolean;
+  screen: Screen;
+  /** 위기·오류 화면에서 돌아갈 곳 */
+  returnTo: Screen;
+  mode: Mode;
+  demoId: DemoId | null;
+  consent: boolean;
+  /** 화면 문구 언어 */
+  uiLanguage: Language;
+  /** 대화 언어(STT가 감지하거나 화면 언어를 따름) */
   language: Language;
+
   history: Message[];
   slots: Slots;
   askCount: number;
   nextQuestion: string | null;
   quickAnswers: string[];
-  currentCard: SummaryCard | null;
+  questionsToAsk: string[];
+
+  card: SummaryCard | null;
   contacts: Contact[];
-  savedSummaries: SavedSummary[];
-  error: ApiError | null;
+  contactsFailed: boolean;
+  /** 저장된 요약을 다시 연 경우 그 id(고치기 불가) */
+  viewingSavedId: string | null;
+  saved: SavedSummary[];
   editSlot: SlotKey | null;
-  interimTranscript: string;
-  isRecording: boolean;
+
+  phase: Phase;
+  /** 듣는 중 화면에 보여 줄 들은 내용 */
+  heard: string;
+  homePanel: HomePanel;
+  error: AppError | null;
+  /** 잠깐 띄우는 안내(저장·지움·녹음 오류 등) */
+  notice: { key: MessageKey; tone: 'info' | 'warn' } | null;
 }
 
-export type AppAction =
-  | { type: 'GIVE_CONSENT' }
-  | { type: 'NAVIGATE'; screen: ScreenState }
-  | { type: 'SET_MODE'; mode: AppMode }
+export type Action =
+  | { type: 'READY'; consent: boolean; saved: SavedSummary[]; uiLanguage?: Language }
+  | { type: 'SET_UI_LANGUAGE'; language: Language }
+  | { type: 'CONSENT_GIVEN' }
+  | { type: 'START'; mode: Mode; demoId?: DemoId | null }
+  | { type: 'GO_HOME'; panel?: HomePanel }
+  | { type: 'SET_HOME_PANEL'; panel: HomePanel }
+  | { type: 'SET_PHASE'; phase: Phase; heard?: string }
   | { type: 'SET_LANGUAGE'; language: Language }
-  | { type: 'START_LISTENING' }
-  | { type: 'STOP_LISTENING' }
-  | { type: 'SET_TRANSCRIPT'; text: string }
-  | {
-      type: 'ADD_MESSAGE';
-      message: Message;
-    }
-  | {
-      type: 'SET_TURN_RESULT';
-      slots: Slots;
-      nextQuestion: string | null;
-      quickAnswers: string[];
-      askCount: number;
-      done: boolean;
-      crisis: boolean;
-      questionsToAsk?: string[];
-    }
-  | { type: 'SET_BUSY'; busy: boolean }
-  | { type: 'SET_DEMO_SCENARIO'; id: DemoScenarioId }
-  | { type: 'SET_CARD'; card: SummaryCard }
-  | { type: 'SET_CONTACTS'; contacts: Contact[] }
-  | { type: 'SET_SAVED_SUMMARIES'; summaries: SavedSummary[] }
-  | { type: 'SET_EDIT_SLOT'; slot: SlotKey | null }
-  | { type: 'TRIGGER_CRISIS' }
-  | { type: 'TRIGGER_ERROR'; error: ApiError }
-  | { type: 'CLEAR_ERROR' }
-  | { type: 'RESET_FLOW' };
+  | { type: 'USER_SAID'; message: Message }
+  | { type: 'UNDO_LAST_MESSAGE' }
+  | { type: 'TURN_RESULT'; result: TurnResult; done: boolean; card: SummaryCard | null }
+  | { type: 'FINISH_EARLY'; card: SummaryCard }
+  | { type: 'EDIT'; slot: SlotKey | null }
+  | { type: 'SHOW'; card: SummaryCard; contacts: Contact[]; contactsFailed: boolean }
+  | { type: 'OPEN_SAVED'; summary: SavedSummary }
+  | { type: 'SAVED_LIST'; saved: SavedSummary[] }
+  | { type: 'BACK_TO_SUMMARY' }
+  | { type: 'CRISIS' }
+  | { type: 'LEAVE_CRISIS' }
+  | { type: 'ERROR'; error: AppError }
+  | { type: 'NEED_CONSENT' }
+  | { type: 'LEAVE_ERROR' }
+  | { type: 'NOTICE'; key: MessageKey; tone?: 'info' | 'warn' }
+  | { type: 'CLEAR_NOTICE' };
