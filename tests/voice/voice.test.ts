@@ -19,7 +19,7 @@ vi.mock('../../lib/openai.js', () => ({
 }));
 
 const { default: transcribeHandler, detectLanguage } = await import('../../api/transcribe.js');
-const { default: ttsHandler, TTS_SPEED } = await import('../../api/tts.js');
+const { default: ttsHandler, TTS_INSTRUCTIONS } = await import('../../api/tts.js');
 const { transcribe, audioExtension } = await import('../../src/api/transcribe.js');
 const { fetchTtsAudio } = await import('../../src/api/tts.js');
 const { pickMimeType, mediaErrorCode, RECORDER_ERROR_KO } =
@@ -183,7 +183,7 @@ describe('POST /api/tts', () => {
       headers: { 'content-length': String(JSON.stringify(body ?? '').length) },
     }) as unknown as VercelRequest;
 
-  it('mp3를 돌려주고 개인정보를 가린다(말투 지시문 없음)', async () => {
+  it('mp3를 돌려주고 언어별 말투 지시·개인정보 가림을 적용한다', async () => {
     openai.speech.mockResolvedValue({ arrayBuffer: async () => new Uint8Array([1, 2, 3]).buffer });
     const res = fakeRes();
     await ttsHandler(
@@ -194,8 +194,7 @@ describe('POST /api/tts', () => {
     expect(res.headers['content-type']).toBe('audio/mpeg');
     const args = openai.speech.mock.calls[0][0];
     expect(args.input).toBe(`연락처는 ${MASK} 입니다`);
-    expect(args.instructions).toBeUndefined(); // 지시문은 낭독을 깨뜨려 쓰지 않는다
-    expect(args.speed).toBe(TTS_SPEED);
+    expect(args.instructions).toBe(TTS_INSTRUCTIONS.en);
     expect(args.model).toBe('tts-model');
   });
 
