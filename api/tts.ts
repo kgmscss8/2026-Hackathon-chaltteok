@@ -9,11 +9,16 @@ import { type Language, TtsRequest } from '../lib/schema.js';
 const MAX_BODY_BYTES = 8 * 1024;
 export const TTS_VOICE = 'nova';
 
-/** 말투 지시(언어별). gpt-4o-mini-tts는 speed 대신 지시문으로 속도를 맞춘다. */
+/**
+ * 말투 지시(언어별). gpt-4o-mini-tts는 speed 대신 지시문으로 속도를 맞춘다.
+ * 지시문을 한국어로 쓰면 한국어 낭독이 깨지는 경우가 있어(실측) 모두 영어로 쓰고, 원문 언어로 그대로 읽게 한다.
+ */
+const STYLE =
+  'slowly and clearly, in a warm and calm voice, with short pauses between sentences so an older listener can follow. Read the text exactly as written. Do not translate, add, or skip anything.';
 export const TTS_INSTRUCTIONS: Record<Language, string> = {
-  ko: '천천히, 또박또박, 따뜻하고 차분한 말투로 읽어 주세요. 어르신이 한 번에 알아들을 수 있게 문장 사이를 조금 쉬어 주세요.',
-  en: 'Speak slowly and clearly in a warm, calm voice, pausing briefly between sentences so an older listener can follow easily.',
-  vi: 'Hãy đọc chậm, rõ ràng, giọng ấm áp và điềm tĩnh, ngắt nghỉ một chút giữa các câu để người lớn tuổi dễ nghe.',
+  ko: `The text is in Korean. Speak it in natural standard Korean, ${STYLE}`,
+  en: `The text is in English. Speak it in natural English, ${STYLE}`,
+  vi: `The text is in Vietnamese. Speak it in natural Vietnamese, ${STYLE}`,
 };
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
