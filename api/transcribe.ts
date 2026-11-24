@@ -1,135 +1,96 @@
+// POST /api/transcribe — 짧은 녹음(최대 60초·4MB) → { text, language }
+// 음성·글자는 저장하거나 로그에 남기지 않는다.
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { toFile } from 'openai';
+import { ApiFailure, fromOpenAIError, sendError } from '../lib/errors.js';
 import { getOpenAI, MODELS } from '../lib/openai.js';
-import { sendError, fromOpenAIError } from '../lib/errors.js';
 import { Language, TranscribeResponse } from '../lib/schema.js';
 
-export const config = {
-  api: {
-    bodyParser: false,
-  },
-};
+// multipart를 직접 읽기 위해 Vercel의 본문 파싱을 끈다
+export const config = { api: { bodyParser: false } };
 
-const MAX_BYTES = 4 * 1024 * 1024;
+export const MAX_AUDIO_BYTES = 4 * 1024 * 1024;
+const MAX_BODY_BYTES = MAX_AUDIO_BYTES + 64 * 1024;
 
-function normalizeLanguage(raw?: string): Language {
-  if (!raw) return 'ko';
-  const lower = raw.toLowerCase();
-  if (lower.startsWith('en') || lower.includes('english')) return 'en';
-  if (lower.startsWith('vi') || lower.includes('vietnam')) return 'vi';
-  return 'ko';
+const AUDIO_TYPE = /^(audio\/[\w.+-]+|video\/(webm|mp4))$/i;
+const AUDIO_EXT = /\.(webm|mp4|m4a|mp3|mpeg|mpga|ogg|oga|wav|aac)$/i;
+
+/**
+ * 받아 적은 글자로 언어를 고른다(모델이 언어를 알려 주지 않을 때).
+ * 한글이 있으면 ko, 베트남어 전용 글자가 있으면 vi, 로마자만 있으면 en, 판단이 안 되면 fallback.
+ */
+export function detectLanguage(text: string, fallback: Language = 'ko'): Language {
+  const hangul = (text.match(/[가-힣]/g) ?? []).length;
+  const viet = (
+    text.match(/[ăâđêôơưàảãáạằẳẵắặầẩẫấậèẻẽéẹềểễếệìỉĩíịòỏõóọồổỗốộờởỡớợùủũúụừửữứựỳỷỹýỵ]/gi) ?? []
+  ).length;
+  const latin = (text.match(/[a-z]/gi) ?? []).length;
+  if (hangul > 0 && hangul >= viet) return 'ko';
+  if (viet >= 2 || (viet > 0 && viet * 10 >= latin)) return 'vi';
+  if (latin > 0) return 'en';
+  return fallback;
 }
 
-async function readRawBody(req: VercelRequest): Promise<Buffer> {
+async function readBody(req: VercelRequest, limit: number): Promise<Buffer> {
   const chunks: Buffer[] = [];
   let total = 0;
-  for await (const chunk of req) {
-    const buf = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+  for await (const chunk of req as AsyncIterable<Buffer | string>) {
+    const buf = typeof chunk === 'string' ? Buffer.from(chunk) : chunk;
     total += buf.length;
-    if (total > MAX_BYTES + 64 * 1024) {
-      throw new Error('PAYLOAD_TOO_LARGE');
-    }
+    if (total > limit) throw ApiFailure.of('BAD_REQUEST');
     chunks.push(buf);
   }
   return Buffer.concat(chunks);
 }
 
-function parseMultipart(
-  body: Buffer,
-  boundary: string
-): { fileBuffer: Buffer; filename: string; contentType: string; languageHint?: string } | null {
-  const boundaryBuf = Buffer.from(`--${boundary}`);
-  let pos = body.indexOf(boundaryBuf);
-  if (pos === -1) return null;
-
-  let fileBuffer: Buffer | null = null;
-  let filename = 'audio.webm';
-  let contentType = 'audio/webm';
-  let languageHint: string | undefined;
-
-  while (pos !== -1) {
-    const nextPos = body.indexOf(boundaryBuf, pos + boundaryBuf.length);
-    if (nextPos === -1) break;
-
-    const part = body.subarray(pos + boundaryBuf.length, nextPos);
-    const headerEnd = part.indexOf(Buffer.from('\r\n\r\n'));
-    if (headerEnd !== -1) {
-      const headerStr = part.subarray(0, headerEnd).toString('utf8');
-      const content = part.subarray(headerEnd + 4, part.length - 2);
-
-      if (headerStr.includes('name="audio"')) {
-        const fnMatch = headerStr.match(/filename="([^"]+)"/);
-        if (fnMatch) filename = fnMatch[1];
-        const ctMatch = headerStr.match(/Content-Type:\s*([^\r\n]+)/i);
-        if (ctMatch) contentType = ctMatch[1].trim();
-        fileBuffer = content;
-      } else if (headerStr.includes('name="language"')) {
-        languageHint = content.toString('utf8').trim();
-      }
-    }
-    pos = nextPos;
-  }
-
-  if (!fileBuffer || fileBuffer.length === 0) return null;
-  return { fileBuffer, filename, contentType, languageHint };
-}
-
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {
+    res.setHeader('Allow', 'POST');
     return sendError(res, 'BAD_REQUEST');
   }
-
-  const ct = req.headers['content-type'] || '';
-  const boundaryMatch = ct.match(/boundary=(?:"([^"]+)"|([^;]+))/i);
-  const boundary = boundaryMatch?.[1] || boundaryMatch?.[2];
-  if (!boundary) {
-    return sendError(res, 'BAD_REQUEST');
-  }
+  const contentType = String(req.headers['content-type'] ?? '');
+  if (!/^multipart\/form-data/i.test(contentType)) return sendError(res, 'BAD_REQUEST');
+  const declared = Number(req.headers['content-length']);
+  if (Number.isFinite(declared) && declared > MAX_BODY_BYTES) return sendError(res, 'BAD_REQUEST');
 
   try {
-    const rawBody = await readRawBody(req);
-    const parsed = parseMultipart(rawBody, boundary.trim());
-    if (!parsed) {
+    const body = await readBody(req, MAX_BODY_BYTES);
+    const form = await new Response(new Uint8Array(body), {
+      headers: { 'content-type': contentType },
+    })
+      .formData()
+      .catch(() => {
+        throw ApiFailure.of('BAD_REQUEST');
+      });
+
+    const audio = form.get('audio');
+    if (!(audio instanceof Blob) || audio.size === 0 || audio.size > MAX_AUDIO_BYTES) {
+      return sendError(res, 'BAD_REQUEST');
+    }
+    const name = (audio as File).name || 'recording.webm';
+    const type = audio.type.split(';')[0].trim();
+    if (!(type ? AUDIO_TYPE.test(type) : AUDIO_EXT.test(name))) {
       return sendError(res, 'BAD_REQUEST');
     }
 
-    if (parsed.fileBuffer.length > MAX_BYTES) {
-      return sendError(res, 'BAD_REQUEST');
-    }
-
-    const allowedTypes = ['audio/webm', 'audio/mp4', 'audio/ogg', 'audio/mpeg', 'video/webm'];
-    const isValidType = allowedTypes.some((t) => parsed.contentType.toLowerCase().includes(t));
-    if (!isValidType) {
-      return sendError(res, 'BAD_REQUEST');
-    }
-
-    const openai = getOpenAI();
-    const audioFile = await toFile(parsed.fileBuffer, parsed.filename, {
-      type: parsed.contentType,
-    });
-
-    const hintParsed = Language.safeParse(parsed.languageHint);
-    const transcription = await openai.audio.transcriptions.create({
-      file: audioFile,
+    const hint = Language.safeParse(form.get('language'));
+    const transcription = await getOpenAI().audio.transcriptions.create({
+      file: await toFile(Buffer.from(await audio.arrayBuffer()), name, {
+        type: type || undefined,
+      }),
       model: MODELS.transcribe,
-      ...(hintParsed.success ? { language: hintParsed.data } : {}),
+      response_format: 'json',
+      ...(hint.success ? { language: hint.data } : {}),
     });
 
-    const detectedLang = hintParsed.success
-      ? hintParsed.data
-      : normalizeLanguage((transcription as { language?: string }).language);
-
+    const text = (transcription.text ?? '').trim();
     const payload = TranscribeResponse.parse({
-      text: transcription.text ?? '',
-      language: detectedLang,
+      text,
+      language: hint.success ? hint.data : detectLanguage(text),
     });
-
+    res.setHeader('Cache-Control', 'no-store');
     return res.status(200).json(payload);
   } catch (err) {
-    if (err instanceof Error && err.message === 'PAYLOAD_TOO_LARGE') {
-      return sendError(res, 'BAD_REQUEST');
-    }
-    const code = fromOpenAIError(err);
-    return sendError(res, code);
+    return sendError(res, fromOpenAIError(err));
   }
 }

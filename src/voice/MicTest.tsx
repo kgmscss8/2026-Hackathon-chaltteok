@@ -1,135 +1,134 @@
-﻿import { useState } from 'react';
-import { useRecorder } from './useRecorder';
-import { transcribe } from '../api/transcribe';
-import { speak, stopSpeaking, unlockAudio } from './speak';
-import { Language } from '@lib/schema';
+﻿/**
+ * 실기기 음성 점검 화면(/mic-test). 녹음 → STT, TTS 읽기를 각각 확인하고 걸린 시간·형식을 보여 준다.
+ * 시연 전 폰 2종(안드로이드 크롬, iOS 사파리) 확인이 끝나면 지운다.
+ */
+import { useState, type PointerEvent } from 'react';
 import { ApiFailure } from '@lib/errors';
+import type { Language } from '@lib/schema';
+import { transcribe } from '../api/transcribe.js';
+import { speak, stopSpeaking, unlockAudio } from './speak.js';
+import { useRecorder } from './useRecorder.js';
+
+const SAMPLES: Record<Language, string> = {
+  ko: '언제까지 해결하고 싶으세요? 천천히 말씀해 주세요.',
+  en: 'When would you like this to be resolved? Please take your time.',
+  vi: 'Bạn muốn việc này được giải quyết khi nào? Cứ nói từ từ nhé.',
+};
 
 export function MicTest() {
-  const { start, stop, recording, error, supported } = useRecorder();
-  const [status, setStatus] = useState<string>('대기 중 (버튼을 꾹 누르고 말하세요)');
-  const [transcript, setTranscript] = useState<string>('');
-  const [detectedLang, setDetectedLang] = useState<Language>('ko');
-  const [ttsInput, setTtsInput] = useState<string>(
-    '안녕하세요. 어떤 민원 때문에 방문하셨나요? 천천히 말씀해 주세요.'
-  );
+  const rec = useRecorder();
+  const [log, setLog] = useState<string[]>([]);
+  const [result, setResult] = useState<{ text: string; language: Language } | null>(null);
+  const [ttsLang, setTtsLang] = useState<Language>('ko');
+  const add = (line: string) =>
+    setLog((l) => [`${new Date().toLocaleTimeString()} ${line}`, ...l].slice(0, 12));
 
-  const handlePointerDown = () => {
+  const down = (e: PointerEvent<HTMLButtonElement>) => {
+    e.currentTarget.setPointerCapture(e.pointerId);
     unlockAudio();
     stopSpeaking();
-    setStatus('듣는 중... (손을 떼면 인식합니다)');
-    start();
+    setResult(null);
+    rec.start();
   };
 
-  const handlePointerUp = async () => {
-    if (!recording) return;
+  const up = async () => {
     try {
-      setStatus('음성을 글자로 바꾸는 중...');
-      const blob = await stop();
-      const res = await transcribe(blob);
-      setTranscript(res.text);
-      setDetectedLang(res.language);
-      setStatus(`인식 완료! (${Math.round(blob.size / 1024)}KB / 언어: ${res.language})`);
+      const blob = await rec.stop();
+      add(`녹음 ${blob.type || '(형식 없음)'} ${(blob.size / 1024).toFixed(1)}KB`);
+      const t0 = performance.now();
+      const r = await transcribe(blob);
+      add(`STT ${Math.round(performance.now() - t0)}ms · ${r.language}`);
+      setResult(r);
     } catch (err) {
-      if (err instanceof ApiFailure) {
-        setStatus(`API 오류 [${err.error.code}]: ${err.error.message_ko}`);
-      } else if (err instanceof Error) {
-        setStatus(`안내: ${err.message}`);
-      } else {
-        setStatus('알 수 없는 오류가 발생했습니다.');
-      }
+      add(
+        err instanceof ApiFailure
+          ? `오류 ${err.error.code}: ${err.error.message_ko}`
+          : String((err as Error).message),
+      );
     }
   };
 
-  const handleSpeakTest = async () => {
+  const tts = async () => {
     unlockAudio();
-    setStatus('음성 출력 중...');
-    await speak(ttsInput, detectedLang);
-    setStatus('음성 출력 완료');
+    const t0 = performance.now();
+    await speak(SAMPLES[ttsLang], ttsLang);
+    add(`TTS 끝 ${Math.round(performance.now() - t0)}ms (${ttsLang})`);
   };
 
   return (
-    <div style={{ maxWidth: 480, margin: '24px auto', padding: 20, fontFamily: 'sans-serif' }}>
-      <h2 style={{ fontSize: 20, fontWeight: 'bold', marginBottom: 12 }}>
-        🎤 파트 B 실기기 음성 테스트 (MicTest)
-      </h2>
+    <div className="mx-auto max-w-md space-y-5">
+      <h1 className="text-2xl font-black">🎤 음성 점검 (파트 B)</h1>
+      <p className="text-base">
+        녹음 지원: <b>{rec.supported ? '됨 ✅' : '안 됨 ❌'}</b> · 상태:{' '}
+        <b>{rec.recording ? '녹음 중' : '대기'}</b>
+      </p>
 
-      <div style={{ padding: 12, background: '#f3f4f6', borderRadius: 8, marginBottom: 16 }}>
-        <div>브라우저 녹음 지원 여부: <strong>{supported ? '지원됨 ✅' : '미지원 ❌'}</strong></div>
-        <div style={{ marginTop: 4 }}>현재 상태: <strong>{status}</strong></div>
-        {error && <div style={{ color: '#dc2626', marginTop: 6 }}>오류: {error}</div>}
-      </div>
-
-      {/* 1. Push-to-Talk 녹음 & STT 테스트 */}
       <button
         type="button"
-        onPointerDown={handlePointerDown}
-        onPointerUp={handlePointerUp}
-        onPointerCancel={handlePointerUp}
-        style={{
-          width: '100%',
-          padding: '24px 16px',
-          fontSize: 18,
-          fontWeight: 'bold',
-          borderRadius: 12,
-          border: 'none',
-          cursor: 'pointer',
-          userSelect: 'none',
-          WebkitUserSelect: 'none',
-          backgroundColor: recording ? '#ef4444' : '#2563eb',
-          color: '#ffffff',
-        }}
+        onPointerDown={down}
+        onPointerUp={() => void up()}
+        onPointerCancel={() => rec.cancel()}
+        onContextMenu={(e) => e.preventDefault()}
+        className="w-full min-h-[96px] rounded-2xl bg-blue-700 text-white text-2xl font-black select-none touch-none"
       >
-        {recording ? '🔴 듣는 중... (손을 떼세요)' : '🎙️ 꾹 눌러서 말하기'}
+        {rec.recording ? '듣는 중… 손을 떼면 끝' : '꾹 누르고 말하기'}
       </button>
-
-      {transcript && (
-        <div style={{ marginTop: 16, padding: 14, border: '1px solid #d1d5db', borderRadius: 8 }}>
-          <div style={{ fontSize: 13, color: '#6b7280' }}>인식된 텍스트 ({detectedLang}):</div>
-          <div style={{ fontSize: 16, fontWeight: 600, marginTop: 4 }}>{transcript}</div>
-        </div>
+      <div className="h-3 w-full rounded bg-gray-200" aria-label="소리 크기">
+        <div
+          className="h-3 rounded bg-emerald-500"
+          style={{ width: `${Math.round(rec.level * 100)}%` }}
+        />
+      </div>
+      {rec.error && (
+        <p role="alert" className="font-bold text-amber-800">
+          {rec.error}
+        </p>
+      )}
+      {result && (
+        <p className="rounded-xl border-2 border-blue-200 bg-blue-50 p-4 text-xl font-bold">
+          [{result.language}] {result.text || '(아무 말도 들리지 않음)'}
+        </p>
       )}
 
-      {/* 2. TTS 음성 출력 테스트 */}
-      <div style={{ marginTop: 28, borderTop: '1px solid #e5e7eb', paddingTop: 20 }}>
-        <h3 style={{ fontSize: 16, fontWeight: 'bold', marginBottom: 8 }}>🔊 TTS 읽어주기 테스트</h3>
-        <textarea
-          rows={3}
-          value={ttsInput}
-          onChange={(e) => setTtsInput(e.target.value)}
-          style={{ width: '100%', padding: 10, borderRadius: 8, border: '1px solid #d1d5db' }}
-        />
-        <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+      <div className="space-y-2 rounded-2xl border p-4">
+        <div className="flex gap-2">
+          {(['ko', 'en', 'vi'] as const).map((l) => (
+            <button
+              key={l}
+              type="button"
+              onClick={() => setTtsLang(l)}
+              className={`flex-1 rounded-lg border-2 py-2 font-bold ${ttsLang === l ? 'border-blue-700 bg-blue-50' : 'border-gray-300'}`}
+            >
+              {l}
+            </button>
+          ))}
+        </div>
+        <p className="text-base">{SAMPLES[ttsLang]}</p>
+        <div className="flex gap-2">
           <button
             type="button"
-            onClick={handleSpeakTest}
-            style={{
-              flex: 1,
-              padding: '12px',
-              backgroundColor: '#059669',
-              color: '#fff',
-              border: 'none',
-              borderRadius: 8,
-              fontWeight: 'bold',
-            }}
+            onClick={() => void tts()}
+            className="flex-1 min-h-[64px] rounded-xl bg-emerald-700 text-white text-lg font-bold"
           >
-            ▶️ 읽어주기 실행
+            🔊 읽어 주기
           </button>
           <button
             type="button"
             onClick={stopSpeaking}
-            style={{
-              padding: '12px 16px',
-              backgroundColor: '#6b7280',
-              color: '#fff',
-              border: 'none',
-              borderRadius: 8,
-            }}
+            className="min-h-[64px] rounded-xl border-2 px-4 font-bold"
           >
-            ⏹️ 중지
+            멈춤
           </button>
         </div>
       </div>
+
+      <ol className="space-y-1 text-sm text-gray-700">
+        {log.map((l, i) => (
+          <li key={i}>{l}</li>
+        ))}
+      </ol>
     </div>
   );
 }
+
+export default MicTest;
